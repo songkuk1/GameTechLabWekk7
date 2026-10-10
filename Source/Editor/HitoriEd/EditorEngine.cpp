@@ -112,6 +112,9 @@ bool UEditorEngine::Init()
 	DepthViewRenderer = MakeUnique<FDepthViewRenderer>();
 	DepthViewRenderer->Init();
 
+	LightRenderer = MakeUnique<FLightRenderer>();
+	LightRenderer->Init();
+
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
@@ -799,6 +802,31 @@ void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo&
 	DepthViewRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, ViewCameraForward);
 	RenderCommand::EndRenderPass(PassInfo);
 }
+void UEditorEngine::RenderLightPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+{
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+	{
+		Color.LoadOp = ERenderTargetLoadOp::Load;
+	}
+
+	// 깊이 텍스처를 SRV로 전달하므로 DSV는 연결하지 않음
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	RenderCommand::BeginRenderPass(PassInfo);
+
+	LightRenderer->OnRender(
+		ViewRenderingInfo.DepthStencil.Texture,
+		ViewProjection,
+		ViewCameraLocation);
+
+	// 다음 패스에서 깊이 버퍼를 다시 사용할 수 있도록 해제
+	RenderCommand::UnbindShaderResource(
+		0, EShaderBindFlagBits::Pixel);
+	RenderCommand::EndRenderPass(PassInfo);
+
+}
 
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::UpdateGizmoAndPicking()
@@ -876,6 +904,8 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	}
 
 
+	// ?. Lighting Pass
+	RenderLightPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 	// 4. 오버레이 Pass
 	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);

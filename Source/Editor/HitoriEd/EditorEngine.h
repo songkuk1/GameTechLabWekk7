@@ -14,7 +14,7 @@
 #include "Render/FogRenderer.h"
 #include "Render/FXAARenderer.h"
 #include "Render/DepthViewRenderer.h"
-
+#include "Render/LightRenderer.h"
 
 #include "Editor/EditorUI/EditorUI.h"
 #include "Editor/OutputLog/OutputLogPanel.h"
@@ -111,7 +111,8 @@ private:
 	void RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo);
 	//Depth Pass
 	void RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
-
+	//Light Pass
+	void RenderLightPass(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue);
 
 
 	FWorldContext& GetEditorWorldContext();
@@ -141,6 +142,8 @@ private:
 	TUniquePtr<FSkyboxRenderer> SkyboxRenderer;
 	TUniquePtr<FFXAARenderer> FXAARenderer;
 	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
+	TUniquePtr<FLightRenderer> LightRenderer;
+
 
 	UFont* SystemFont;
 
