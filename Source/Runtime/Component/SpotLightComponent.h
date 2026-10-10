@@ -41,7 +41,7 @@ public:
 private:
 	// 원뿔 중심축 기준 반각(도). 
 	float InnerConeAngle = 15.0f;
-	float OuterConeAngle = 30.0f;
+	float OuterConeAngle = 44.0f;
 
 	// 빛이 닿는 거리
 	float AttenuationRadius = 5.0f;
