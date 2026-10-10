@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
+#include "Component/ParticleSubUVComponent.h"
+
 // Billboard 컴포넌트의 초기 상태를 구성한다.
 UBillboardComponent::UBillboardComponent()
 {
@@ -72,6 +74,13 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	Packet.Mesh = QuadMesh;
 	Packet.Material = Material;
 	Packet.Model = RenderQueue.StoreWorldMatrix(BillboardWorldMatrix);
+
+	/*
+	static const FSubUVConstants IconParams {0.0f, 1.0f, 1.0f, 1.0f};
+	Packet.MaterialParamData = &IconParams;
+	Packet.MaterialParamDataSize = sizeof(IconParams);
+	*/
+
 	RenderQueue.Add(Packet);
 }
 

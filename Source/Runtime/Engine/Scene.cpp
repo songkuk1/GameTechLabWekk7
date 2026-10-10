@@ -285,3 +285,74 @@ void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
 		}
 	}
 }
+
+void FScene::UpdateDirectionalLight(FRenderer* Renderer)
+{
+	if (!Renderer)
+		return;
+
+	FDirectionalLight Data{};
+	FDirectionalLightConstants Constants{};
+
+	Constants.LightCount = 0;
+
+	Data.Direction = FVector4(0, 0, 0, 0);
+	Data.ColorIntensity = FVector4(0, 0, 0, 0);
+	Data.EXP = FVector4(1, 0, 0, 0);
+
+	for (UDirectionalLightComponent* DirectLight : DirectionalLightComponents)
+	{
+		if (Constants.LightCount >= MaxDirectLights)
+		{
+			break;
+		}
+
+		if (!DirectLight)
+			continue;
+
+		const FRotator Direct = DirectLight->GetWorldRotation().Quaternion().RotateVector(FVector(1.0f,0.0f,0.0f)).Normalized();
+		const FVector4 Color = DirectLight->GetLightColor();
+
+		Data.Direction = FVector4(
+			Direct.Pitch,
+			Direct.Yaw,
+			Direct.Roll,
+			1.0f
+		);
+
+		Data.ColorIntensity = FVector4(
+			Color.X,
+			Color.Y,
+			Color.Z,
+			std::max<float>(DirectLight->GetIntensity(), 0.0f)
+		);
+
+		Constants.Light[Constants.LightCount] = Data;
+		Constants.LightCount++;
+	}
+
+	Renderer->SetDirectionalLight(Constants);
+}
+void FScene::RegisterDirectLight(UDirectionalLightComponent* DLightComp)
+{
+	if (!DLightComp)
+		return;
+
+	for (UDirectionalLightComponent* Existing : DirectionalLightComponents)
+	{
+		if (Existing == DLightComp)
+			return;
+	}
+	DirectionalLightComponents.Add(DLightComp);
+}
+void FScene::UnregisterDirectLight(UDirectionalLightComponent* DLightComp)
+{
+	for (uint32 i = 0; i < DirectionalLightComponents.Num(); ++i)
+	{
+		if (DirectionalLightComponents[i] == DLightComp)
+		{
+			DirectionalLightComponents.RemoveAt(i, 1);
+			return;
+		}
+	}
+}

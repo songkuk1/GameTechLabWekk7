@@ -4,6 +4,7 @@
 #include "Component/BillboardComponent.h"
 #include "Component/PrimitiveComponent.h"
 #include "Component/FireBallComponent.h"
+#include "Component/DirectionalLightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
@@ -35,9 +36,16 @@ public:
 	void MarkDirty(FPrimitiveSceneProxy* Proxy);
 	void MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy);
 
+	// Todo : LightComponent로 묶게 되면서 상위 클래스에서 해당 함수를 통일하게 할 것인가?
+
 	void UpdateFireBallLight(FRenderer* Renderer);
 	void RegisterFireBall(UFireBallComponent* FireBall);
 	void UnregisterFireBall(UFireBallComponent* FireBall);
+	
+	void UpdateDirectionalLight(FRenderer* Renderer);
+	void RegisterDirectLight(UDirectionalLightComponent* DLightComp);
+	void UnregisterDirectLight(UDirectionalLightComponent* DLightComp);
+
 
 	TArray<FPrimitiveSceneProxy*> Proxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
@@ -58,4 +66,5 @@ public:
 	bool bElementListChanged = false;
 	
 	TArray<UFireBallComponent*> FireBallComponents;
+	TArray<UDirectionalLightComponent*> DirectionalLightComponents;
 };
