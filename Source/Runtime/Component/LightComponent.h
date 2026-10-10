@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SceneComponent.h"
+#include "Render/LineBatcher.h"
 
 class ULightComponent : public USceneComponent
 {
@@ -8,5 +9,6 @@ class ULightComponent : public USceneComponent
 	REFLECT_START(ULightComponent)
 	REFLECT_END()
 public:
+		virtual void DrawDebug(FLineBatcher* LineBatcher) const = 0;
 private:
 };
