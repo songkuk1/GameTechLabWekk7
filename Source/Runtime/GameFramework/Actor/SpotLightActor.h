@@ -3,7 +3,6 @@
 #include "GameFramework/Actor/LightActor.h"
 #include "Component/BillboardComponent.h"
 #include "Component/SpotLightComponent.h"
-#include "Component/PointLightComponent.h"
 
 class ASpotLightActor : public ALightActor
 {

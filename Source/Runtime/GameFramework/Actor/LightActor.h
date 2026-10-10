@@ -15,8 +15,8 @@ class ALightActor : public AActor
 
 public:
 	UBillboardComponent* GetBillboardComponent() const { return BillboardComponent; }
-	USpotLightComponent* GetLightComponent() const { return SpotLightComponent; }
-	void SetLightComponent(USpotLightComponent* InLightComponent) { SpotLightComponent = InLightComponent; }
+	USpotLightComponent* GetLightComponent() const { return LightComponent; }
+	void SetLightComponent(USpotLightComponent* InLightComponent) { LightComponent = InLightComponent; }
 
 public:
 	ALightActor();
@@ -25,5 +25,5 @@ public:
 	// 클릭해서 고를 수 있어야 하므로 프리미티브인 빌보드를 루트로 둔다
 	UBillboardComponent* BillboardComponent = nullptr;
 
-	USpotLightComponent* SpotLightComponent = nullptr;
+	USpotLightComponent* LightComponent = nullptr;
 };
