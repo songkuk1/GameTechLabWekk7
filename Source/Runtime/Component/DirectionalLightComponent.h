@@ -1,0 +1,35 @@
+#pragma once
+
+#include "Component/StaticMeshComponent.h"
+#include "Component/BillboardComponent.h"
+#include "Render/Material.h"
+#include "LightComponent.h"
+
+class FLineBatcher;
+
+class UDirectionalLightComponent : public ULightComponent
+{
+	DECLARE_CLASS(UDirectionalLightComponent, ULightComponent)
+	REFLECT_START(ClassName)
+		PROPERTY(Intensity)
+		PROPERTY_TYPE(LightColor, Color)
+	REFLECT_END()
+
+public:
+	UDirectionalLightComponent() = default;
+	~UDirectionalLightComponent();
+
+	void InitializeComponent();
+	
+	void DrawDebug(FLineBatcher* LineBatcher) const;
+
+	float GetIntensity() { return Intensity; }
+	void SetIntensity(float intensity) { Intensity = intensity; }
+
+	FVector4 GetLightColor() { return LightColor; }
+	void SetLightColor(FVector4 lightcolor) { LightColor = lightcolor; }
+
+private:
+	float Intensity = 1.0f;
+	FVector4 LightColor = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+};

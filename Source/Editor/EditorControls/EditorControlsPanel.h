@@ -9,6 +9,7 @@
 #include "GameFramework/Actor/TextRenderActor.h"
 #include "GameFramework/Actor/FireBallActor.h"
 #include "GameFramework/Actor/ExponentialHeightFogActor.h"
+#include "GameFramework/Actor/DirectionalLightActor.h"
 
 class FMultipleViewportsAdapter;
 
@@ -31,7 +32,7 @@ public:
 
 	int32 SelectedIndex = 0;
 
-	const char* Items[7] ={"Actor", "StaticMesh","Particle","Text","Light","ExponentialHeightFog", "FireBall"};
+	const char* Items[8] ={"Actor", "StaticMesh","Particle","Text","Light","ExponentialHeightFog", "FireBall","DirectionalLight"};
 
 	FGizmo* Gizmo = nullptr;
 	int32 GizmoSelectedIndex = 0;
@@ -48,7 +49,8 @@ public:
 		ATextRenderActor::StaticClass(),
 		ALightActor::StaticClass(),
 		AExponentialHeightFogActor::StaticClass(),
-		AFireBallActor::StaticClass()
+		AFireBallActor::StaticClass(),
+		ADirectionalLightActor::StaticClass()
 	};
 
     void SetViewportAdapter(FMultipleViewportsAdapter* InAdapter) { ViewportAdapter = InAdapter; }

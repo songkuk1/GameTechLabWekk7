@@ -9,6 +9,7 @@
 
 constexpr uint32 ObjectSlotBytes = 256;
 constexpr uint32 MaxFireBalls = 16;
+constexpr uint32 MaxDirectLights = 2;
 
 struct FPerObjectConstants
 {
@@ -53,6 +54,20 @@ struct alignas(16) FFireBallLightConstants
 	uint32 Padding[3] = {};
 };
 
+struct alignas(16) FDirectionalLight
+{
+	FVector4 Direction; // xyz: 방향, w: 패딩
+	FVector4 ColorIntensity; // rgb: 색상, w: 강도
+	FVector4 EXP; // x: ?, y: ?, z :, w: ? (추후 추가 입력값 대비)
+};
+
+struct alignas(16) FDirectionalLightConstants
+{
+	FDirectionalLight Light[MaxDirectLights];
+	uint32 LightCount;
+	uint32 Padding[3] = {};
+};
+
 class FRenderer
 {
 public:
@@ -90,6 +105,7 @@ public:
 	void EndObjectConstants();
 
 	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	void SetDirectionalLight(const FDirectionalLightConstants& LightData);
 
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
@@ -129,5 +145,8 @@ private:
 	TArray<FSortEntry> SortEntries;
 
 	TUniquePtr<FConstantBuffer> FireBallLightCB;
+	TUniquePtr<FConstantBuffer> DirectionalLightCB;
+
 	FFireBallLightConstants FireBallLightData{};
+	FDirectionalLightConstants DirectionalLightData{};
 };
