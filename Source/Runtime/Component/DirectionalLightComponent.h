@@ -21,7 +21,7 @@ public:
 
 	void InitializeComponent();
 	
-	void DrawDebug(FLineBatcher* LineBatcher) const;
+	virtual void DrawDebug(FLineBatcher* LineBatcher) const override;
 
 	float GetIntensity() { return Intensity; }
 	void SetIntensity(float intensity) { Intensity = intensity; }
