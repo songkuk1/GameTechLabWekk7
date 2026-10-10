@@ -4,9 +4,9 @@
 
 class FLineBatcher;
 
-class USpotLightComponent : public ULightComponent
+class UPointLightComponent : public ULightComponent
 {
-	DECLARE_CLASS(USpotLightComponent, ULightComponent)
+	DECLARE_CLASS(UPointLightComponent, ULightComponent)
 
 	REFLECT_START(ClassName)
 		PROPERTY(InnerConeAngle)
@@ -18,8 +18,8 @@ class USpotLightComponent : public ULightComponent
 	REFLECT_END()
 
 public:
-	USpotLightComponent() = default;
-	virtual ~USpotLightComponent() override = default;
+	UPointLightComponent() = default;
+	virtual ~UPointLightComponent() override = default;
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
@@ -44,7 +44,7 @@ private:
 	float OuterConeAngle = 30.0f;
 
 	// 빛이 닿는 거리
-	float AttenuationRadius = 3.0f;
+	float AttenuationRadius = 5.0f;
 
 	// Inner에서 Outer로 가며 밝기가 떨어지는 정도.
 	float Falloff = 1.0f;
