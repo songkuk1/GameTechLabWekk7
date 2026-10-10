@@ -52,7 +52,7 @@ Texture2D g_txColor : register(t0);
 SamplerState g_Sample : register(s0);
 
 // 임시 하드코딩 Directional Light. 빛이 "향하는" 방향이다.
-static const float3 LightDir = normalize(float3(0.5f, 0.5f, -1.0f));
+static const float3 LightDir = normalize(float3(-0.5f, 0.0f, 0.0f));
 static const float3 LightColor = float3(0.5f, 0.5f, 0.5f);
 static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
 

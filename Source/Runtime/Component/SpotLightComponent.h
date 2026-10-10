@@ -7,7 +7,6 @@ class FLineBatcher;
 class USpotLightComponent : public USceneComponent
 {
 	DECLARE_CLASS(USpotLightComponent, USceneComponent)
-
 	REFLECT_START(ClassName)
 		PROPERTY(InnerConeAngle)
 		PROPERTY(OuterConeAngle)
