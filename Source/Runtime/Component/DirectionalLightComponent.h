@@ -20,8 +20,7 @@ public:
 	~UDirectionalLightComponent();
 
 	void InitializeComponent();
-	
-	virtual void DrawDebug(FLineBatcher* LineBatcher) const override;
+	void DrawDebug(FLineBatcher* LineBatcher) const;
 
 	float GetIntensity() { return Intensity; }
 	void SetIntensity(float intensity) { Intensity = intensity; }

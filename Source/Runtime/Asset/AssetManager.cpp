@@ -279,8 +279,9 @@ void UAssetManager::CreateDefaultMaterial()
 {
 	UMaterial* DefaultMat = NewObject<UMaterial>();
 	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl");
+	DefaultMat->Shader->VertexShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl")->VertexShader;
+	DefaultMat->Shader->PixelShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/UberLit.hlsl")->PixelShader;
 	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
-
 
 	DefaultMat->ParamLayout = EMaterialParamLayout::StaticMesh;
 	DefaultMat->ParamBuffer = RenderCommand::CreateConstantBuffer(sizeof(FStaticMeshMaterialParams));

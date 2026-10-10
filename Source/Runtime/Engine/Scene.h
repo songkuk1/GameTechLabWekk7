@@ -9,6 +9,7 @@
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
 #include "Render/Renderer.h"
+#include "Render/LightRenderer.h"
 
 struct FExponentialHeightFogSceneInfo
 {
@@ -42,7 +43,7 @@ public:
 	void RegisterFireBall(UFireBallComponent* FireBall);
 	void UnregisterFireBall(UFireBallComponent* FireBall);
 	
-	void UpdateDirectionalLight(FRenderer* Renderer);
+	void UpdateDirectionalLight(FLightRenderer* Renderer);
 	void RegisterDirectLight(UDirectionalLightComponent* DLightComp);
 	void UnregisterDirectLight(UDirectionalLightComponent* DLightComp);
 

@@ -29,4 +29,5 @@ void UDirectionalLightComponent::InitializeComponent()
 
 void UDirectionalLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 {
+
 }

@@ -63,7 +63,6 @@ bool FRenderer::Init()
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
 	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
-	DirectionalLightCB = RenderCommand::CreateConstantBuffer(sizeof(FDirectionalLightConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -531,10 +530,4 @@ void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
 {
 	FireBallLightData = LightData;
 	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
-}
-
-void FRenderer::SetDirectionalLight(const FDirectionalLightConstants& LightData)
-{
-	DirectionalLightData = LightData;
-	RenderCommand::UpdateBufferData(DirectionalLightCB.get(), &DirectionalLightData, sizeof(FDirectionalLightConstants));
 }

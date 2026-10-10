@@ -286,7 +286,7 @@ void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
 	}
 }
 
-void FScene::UpdateDirectionalLight(FRenderer* Renderer)
+void FScene::UpdateDirectionalLight(FLightRenderer* Renderer)
 {
 	if (!Renderer)
 		return;
@@ -331,7 +331,7 @@ void FScene::UpdateDirectionalLight(FRenderer* Renderer)
 		Constants.LightCount++;
 	}
 
-	Renderer->SetDirectionalLight(Constants);
+	Renderer->UpadateConstants(Constants);
 }
 void FScene::RegisterDirectLight(UDirectionalLightComponent* DLightComp)
 {

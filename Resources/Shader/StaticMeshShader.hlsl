@@ -4,17 +4,17 @@ cbuffer Viewconstants : register(b0)
     matrix VP;
 };
 
-cbuffer Worldconstants : register(b2)
-{
-    matrix World;
-};
-
 cbuffer MaterialParams : register(b1)
 {
     float4 BaseColor;
     float2 UVOffset;
     float bOpaque;
     float Padding;
+};
+
+cbuffer Worldconstants : register(b2)
+{
+    matrix World;
 };
 
 struct FireBallLight

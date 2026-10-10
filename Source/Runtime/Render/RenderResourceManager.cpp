@@ -6,7 +6,6 @@
 #include "RenderUtil.h"
 
 
-
 void FRenderResourceManager::ScanShaders(const fs::path& ShaderRoot)
 {
 	std::error_code ErrorCode;
@@ -48,25 +47,26 @@ FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath)
 	return nullptr;
 }
 
-void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
+void FRenderResourceManager::LoadOrCompileShader(const FString& InPath)
 { 
 	FString VSCSOPath;
 	FString PSCSOPath;
-	FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath);
-	FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel, PSCSOPath);
+	FShaderByteCode VSCode = RenderUtil::GetOrCompile(InPath, "mainVS", EShaderType::Vertex, VSCSOPath);
+	FShaderByteCode PSCode = RenderUtil::GetOrCompile(InPath, "mainPS", EShaderType::Pixel, PSCSOPath);
 
 	if (!VSCode.IsValid() || !PSCode.IsValid())
 	{
-		HTR_LOG(Error, "[Shader] compile failed: {}", Path);
+		HTR_LOG(Error, "[Shader] compile failed: {}", InPath);
 		return;
 	}
+
 
 	TUniquePtr<FVertexShader> Vs = RenderCommand::CreateVertexShader(VSCode);
 	TUniquePtr<FPixelShader>  Ps = RenderCommand::CreatePixelShader(PSCode);
 
 	if (!Vs || !Vs->IsValid() || !Ps || !Ps->IsValid())
 	{
-		HTR_LOG(Error, "[Shader] device create failed: {}", Path);
+		HTR_LOG(Error, "[Shader] device create failed: {}", InPath);
 		return;
 	}
 
@@ -75,8 +75,8 @@ void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
 
 	VertexShaderMap[VSCSOPath] = std::move(Vs);
 	PixelShaderMap[PSCSOPath] = std::move(Ps);
-	ShaderProgramMap[Path] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
+	ShaderProgramMap[InPath] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
 
-	HTR_LOG(Info, "[Shader] loaded: {}", Path);
+	HTR_LOG(Info, "[Shader] loaded: {}", InPath);
 
 }
