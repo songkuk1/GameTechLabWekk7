@@ -6,7 +6,9 @@ class FLineBatcher;
 
 class USpotLightComponent : public ULightComponent
 {
+
 	DECLARE_CLASS(USpotLightComponent, ULightComponent)
+
 
 	REFLECT_START(ClassName)
 		PROPERTY(InnerConeAngle)
@@ -41,7 +43,7 @@ public:
 private:
 	// 원뿔 중심축 기준 반각(도). 
 	float InnerConeAngle = 15.0f;
-	float OuterConeAngle = 30.0f;
+	float OuterConeAngle = 44.0f;
 
 	// 빛이 닿는 거리
 	float AttenuationRadius = 3.0f;

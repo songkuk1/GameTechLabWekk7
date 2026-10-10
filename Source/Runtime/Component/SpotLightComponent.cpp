@@ -11,8 +11,11 @@ namespace
 	// 꼭짓점에서 밑면으로 뻗는 옆선 개수
 	constexpr int32 CONE_SIDE_LINE_COUNT = 24;
 
+	constexpr int32 CONE_ARC_LINE_COUNT = 12;
 	// Apex에서 Forward 방향으로 Range만큼 뻗은 원뿔을 와이어로 그린다.
 	// Right/Up은 Forward에 직교하는 밑면 평면의 축이다.
+
+	//inner cone
 	void AddWireCone(
 		FLineBatcher* LineBatcher,
 		const FVector& Apex,
@@ -27,7 +30,6 @@ namespace
 		const float BaseRadius = std::tanf(HalfAngle) * Range;
 
 		const FVector BaseCenter = Apex + Forward * Range;
-
 		// 밑면 원
 		FVector PreviousPoint;
 		FVector FirstPoint;
@@ -67,6 +69,36 @@ namespace
 				Up * (std::sinf(Angle) * BaseRadius);
 
 			LineBatcher->AddLine(Apex, Point, Color);
+		}
+
+
+
+
+		// 원의 호 그리기
+		const float ArcRadius = Range / std::cosf(HalfAngle);
+		const FVector ArcAxes[2] = { Right, Up };
+
+		for (int32 AxisIndex = 0; AxisIndex < 2; ++AxisIndex)
+		{
+			FVector PrevPoint;
+
+			for (int32 i = 0; i <= CONE_ARC_LINE_COUNT; ++i)
+			{
+				const float T = static_cast<float>(i) / CONE_ARC_LINE_COUNT;
+				const float Angle = -HalfAngle + 2.0f * HalfAngle * T;
+
+				const FVector Point =
+					Apex +
+					Forward * (std::cosf(Angle) * ArcRadius) +
+					ArcAxes[AxisIndex] * (std::sinf(Angle) * ArcRadius);
+
+				if (i > 0)
+				{
+					LineBatcher->AddLine(PrevPoint, Point, Color);
+				}
+
+				PrevPoint = Point;
+			}
 		}
 	}
 }
