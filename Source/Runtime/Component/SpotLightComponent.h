@@ -1,12 +1,12 @@
 #pragma once
 
-#include "SceneComponent.h"
+#include "component/LightComponent.h"
 
 class FLineBatcher;
 
-class USpotLightComponent : public USceneComponent
+class USpotLightComponent : public ULightComponent
 {
-	DECLARE_CLASS(USpotLightComponent, USceneComponent)
+	DECLARE_CLASS(USpotLightComponent, ULightComponent)
 
 	REFLECT_START(ClassName)
 		PROPERTY(InnerConeAngle)
@@ -21,7 +21,7 @@ public:
 	USpotLightComponent() = default;
 	virtual ~USpotLightComponent() override = default;
 
-	void DrawDebug(FLineBatcher* LineBatcher) const;
+	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
 	float GetInnerConeAngle() const { return InnerConeAngle; }
 	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }

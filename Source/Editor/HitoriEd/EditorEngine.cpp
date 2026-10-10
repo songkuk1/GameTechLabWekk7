@@ -644,7 +644,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		{
 			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
 			{
-				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
+				LightActor->GetLightComponent()->DrawDebug(LineBatcher.get());
 			}
 		}
 
