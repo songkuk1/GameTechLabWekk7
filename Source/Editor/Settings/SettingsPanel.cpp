@@ -100,7 +100,8 @@ void FSettingsPanel::OnRender()
 	{
 		"Gouraud",
 		"Lambert",
-		"Blinn-Phong"
+		"Blinn-Phong",
+		"Unlit"
 	};
 
 	int SelectedIndex = static_cast<int>(Settings.SelectedLightingModel);

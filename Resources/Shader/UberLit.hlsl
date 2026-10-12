@@ -237,10 +237,7 @@ PS_INPUT mainVS(VS_INPUT input)
         float3 directionalSpecular;
         float3 pointSpecular;
         float3 spotSpecular;
-        float3 Color = CalculateAmbient()
-            + CalculateDirectional(output, LightingModel, directionalSpecular)
-            + CalculatePoint(output, LightingModel, pointSpecular)
-            + CalculateSpot(output, LightingModel, spotSpecular);
+        float3 Color = CalculateAmbient()+ CalculateDirectional(output, LightingModel, directionalSpecular)+ CalculatePoint(output, LightingModel, pointSpecular) + CalculateSpot(output, LightingModel, spotSpecular);
         output.color = float4(Color, 1.0f);
     }
    
@@ -254,7 +251,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     
     if (LightingModel == 0) // 구로 셰이딩
     {
-        return float4(albedo.rgb * input.color.rgb, bOpaque > 0.5f ? 1.0f : albedo.a);;
+        return float4(albedo.rgb * input.color.rgb, bOpaque > 0.5f ? 1.0f : albedo.a);
     }
  
     float3 AmbientColor = CalculateAmbient();

@@ -14,7 +14,8 @@ enum class LightingModel : uint32
 {
 	LM_GOURAUD,
 	LM_LAMBERT,
-	LM_BlinnPhong
+	LM_BlinnPhong,
+	LM_Unlit
 };
 
 struct alignas(16) FLightingModelConstant

@@ -77,6 +77,8 @@ public:
 	// GPU 결과를 기다리므로 매우 느리다. 버튼 등으로 한 프레임만 실행할 것.
 	FOcclusionMeasureResult MeasureOpaqueOcclusion(const FMatrix& ViewProjection);
 
+	void SetUnlitMode(bool bEnabled) { bUseUnlit = bEnabled; }
+
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
 
@@ -117,4 +119,6 @@ private:
 
 	TArray<FSortEntry> SortEntries;
 
+	bool bUseUnlit = false;
+	FShaderProgram* UnlitShader = nullptr;
 };
