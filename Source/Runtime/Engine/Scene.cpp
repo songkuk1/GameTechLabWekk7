@@ -143,6 +143,13 @@ void FScene::UpdateAllTransforms()
 		PrimitiveFlags[Proxy->PackedIndex] = Proxy->GetComponent()->IsVisible() ? 1 : 0;
 		Proxy->bQueuedForUpdate = false;
 	}
+
+	for (FLightSceneProxy* Proxy : DirtyLightProxies)
+	{
+		Proxy->UpdateFromComponent(Proxy->Component);
+		Proxy->bQueuedForUpdate = false;
+	}
+	DirtyLightProxies.Reset();
 	
 	//const int32 Count = Proxies.Num();
 	//for (int32 i = 0; i < Count; ++i)
@@ -355,4 +362,60 @@ void FScene::UnregisterDirectLight(UDirectionalLightComponent* DLightComp)
 			return;
 		}
 	}
+}
+
+void FScene::AddLight(ULightComponent* Component)
+{
+	if (!Component || Component->SceneProxy) return;   // 이미 등록됨
+
+	FLightSceneProxy* Proxy = Component->CreateSceneProxy();
+	if (!Proxy) return;
+
+	Proxy->Scene = this;
+	Proxy->Component = Component;
+	Proxy->PackedIndex = LightProxies.Num();
+	Component->SceneProxy = Proxy;
+
+	LightProxies.Add(Proxy);
+}
+
+void FScene::RemoveLight(ULightComponent* Component)
+{
+	if (!Component || !Component->SceneProxy) return;
+
+	FLightSceneProxy* Proxy = Component->SceneProxy;
+	const uint32 Index = static_cast<uint32>(Proxy->PackedIndex);
+
+	// 마지막 원소를 빈자리로 옮기고, 옮겨진 프록시의 인덱스를 갱신
+	LightProxies.RemoveAtSwap(Index);
+	if (Index < static_cast<uint32>(LightProxies.Num()))
+		LightProxies[Index]->PackedIndex = static_cast<int32>(Index);
+
+	if (Proxy->bQueuedForUpdate)
+	{
+		const int32 Found = DirtyLightProxies.Find(Proxy);
+		if (Found != INDEX_NONE) DirtyLightProxies.RemoveAtSwap(Found);
+	}
+
+	Component->SceneProxy = nullptr;
+	delete Proxy;
+}
+
+void FScene::RemoveAllLights()
+{
+	for (FLightSceneProxy* Proxy : LightProxies)
+	{
+		if (Proxy->Component)
+			Proxy->Component->SceneProxy = nullptr;
+		delete Proxy;
+	}
+	LightProxies.Reset();
+	DirtyLightProxies.Reset();
+}
+
+void FScene::MarkLightDirty(FLightSceneProxy* Proxy)
+{
+	if (!Proxy || Proxy->bQueuedForUpdate) return;   // 중복 추가 방지
+	Proxy->bQueuedForUpdate = true;
+	DirtyLightProxies.Add(Proxy);
 }

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "PrimitiveSceneProxy.h"
+#include "LightSceneProxy.h"
 #include "Component/BillboardComponent.h"
 #include "Component/PrimitiveComponent.h"
 #include "Component/FireBallComponent.h"
@@ -46,6 +47,11 @@ public:
 	void RegisterDirectLight(UDirectionalLightComponent* DLightComp);
 	void UnregisterDirectLight(UDirectionalLightComponent* DLightComp);
 
+	void AddLight(ULightComponent* Component);
+	void RemoveLight(ULightComponent* Component);
+	// 모든 프록시를 한 번에 지운다. 액터를 통째로 지우기 전(ClearWorld)에 불러야 지워진 컴포넌트를 가리키는 프록시가 남지 않는다.
+	void RemoveAllLights();
+	void MarkLightDirty(FLightSceneProxy* Proxy);
 
 	TArray<FPrimitiveSceneProxy*> Proxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
@@ -65,6 +71,13 @@ public:
 	};
 	bool bElementListChanged = false;
 	
+
 	TArray<UFireBallComponent*> FireBallComponents;
 	TArray<UDirectionalLightComponent*> DirectionalLightComponents;
+
+	TArray<FLightSceneProxy*> LightProxies;
+	//TODO: Dirty를 두는 방식도 Thread Safe하지않음 여긴 게임,렌더 스레드가 둘다 접근할 수 있는 공간
+	TArray<FLightSceneProxy*> DirtyLightProxies;
+
+
 };

@@ -143,8 +143,13 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
 	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	//여기에 라이트 전체 바인딩
 
+
+	//이건 사실상 안쓰는 중인듯
 	DrawStaticGroups();
+
+
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
 }
 

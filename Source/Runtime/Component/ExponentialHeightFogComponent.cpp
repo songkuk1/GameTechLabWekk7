@@ -19,8 +19,8 @@ FFogInfo UExponentialHeightFogComponent::GetFogInfo() const
 
 void UExponentialHeightFogComponent::PostEditChangeProperty(const FProperty& Property)
 {
-	Super::PostEditChangeProperty(Property);
 	
+	Super::PostEditChangeProperty(Property);
 
 	AActor* OwnerActor = GetOwner();
 	if (!OwnerActor) return;
@@ -31,5 +31,6 @@ void UExponentialHeightFogComponent::PostEditChangeProperty(const FProperty& Pro
 	World->GetScene().UpdateFogInfo(GetUUID(),GetFogInfo());
 
 
+		
 
 }

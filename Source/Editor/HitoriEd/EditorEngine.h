@@ -142,6 +142,8 @@ private:
 	TUniquePtr<FFXAARenderer> FXAARenderer;
 	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
 
+
+
 	UFont* SystemFont;
 
 	FOutputLogPanel* OutputLogPanel = nullptr;

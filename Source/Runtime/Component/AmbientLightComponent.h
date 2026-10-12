@@ -18,6 +18,17 @@ public:
 	UAmbientLightComponent(const UAmbientLightComponent&) = delete;
 	UAmbientLightComponent& operator=(const UAmbientLightComponent& ) = delete;
 
+	// 위치/방향이 없어서 그릴 디버그 형상이 없다
+	virtual void DrawDebug(FLineBatcher* LineBatcher) const override {}
+
+	float GetIntensity() const { return Intensity; }
+	void SetIntensity(float InIntensity) { Intensity = InIntensity; MarkLightDirty(); }
+
+	const FVector4& GetLightColor() const { return LightColor; }
+	void SetLightColor(const FVector4& InColor) { LightColor = InColor; MarkLightDirty(); }
+
+	virtual FLightSceneProxy* CreateSceneProxy() const override;
+
 private:
 	//빛의 강도
 	float Intensity = 0.2f;

@@ -465,13 +465,24 @@ void UEditorEngine::RenderMultipleViewports()
 		CopyPIEWindowToBackbuffer();
 	}
 
+
+	//어댑터의 view Mode 정보,Layout정보를 뷰포트에 동기화
 	EMultipleViewportsCameraPreset CameraPresets[4]{};
+	EMultipleViewPortsViewMode ViewModes[4]{};
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
+	{
 		CameraPresets[ViewIndex] = MultipleViewportsAdapter.GetCameraPreset(ViewIndex);
+		ViewModes[ViewIndex] = MultipleViewportsAdapter.GetViewMode(ViewIndex);
+	}
+		
 	ViewportsPanel->SetControlState(
 		MultipleViewportsAdapter.GetLayoutMode(),
 		MultipleViewportsAdapter.GetSingleViewIndex(),
-		CameraPresets);
+		CameraPresets, ViewModes);
+
+	
+
+
 }
 
 void UEditorEngine::UpdatePIEViewCamera()

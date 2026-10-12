@@ -2,6 +2,7 @@
 #include "Component/PointLightComponent.h"
 
 #include "Render/LineBatcher.h"
+#include "Engine/PointLightSceneProxy.h"
 
 namespace
 {
@@ -75,4 +76,11 @@ void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 
 		FVector4 InnerColor(LightColor.X * 0.5f, LightColor.Y * 0.5f, LightColor.Z * 0.5f, LightColor.W);
 	}
+}
+
+FLightSceneProxy* UPointLightComponent::CreateSceneProxy() const
+{
+
+
+	return new FPointLightSceneProxy(this);
 }

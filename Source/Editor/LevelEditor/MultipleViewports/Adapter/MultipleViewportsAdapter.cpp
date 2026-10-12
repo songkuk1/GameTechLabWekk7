@@ -175,6 +175,7 @@ void FMultipleViewportsAdapter::InitializeFromWorld(UWorld& World)
         CameraYawDegrees(Views.Cameras[0].Transform.Rotation),
         CameraPitchDegrees(Views.Cameras[0].Transform.Rotation));
     CameraPresets[0] = EMultipleViewportsCameraPreset::Perspective;
+    ViewModes[0] = EMultipleViewPortsViewMode::UnLit;
 
     FCameraProjection Orthographic = Perspective;
     Orthographic.Mode = EProjectionMode::Orthographic;
@@ -186,6 +187,11 @@ void FMultipleViewportsAdapter::InitializeFromWorld(UWorld& World)
     CameraPresets[3] = EMultipleViewportsCameraPreset::Left;
     for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
         ConstrainOrthographicWidth(Views.Cameras[ViewIndex].Projection, ViewRects[ViewIndex]);
+
+    ViewModes[1] = EMultipleViewPortsViewMode::UnLit;
+    ViewModes[2] = EMultipleViewPortsViewMode::UnLit;
+    ViewModes[3] = EMultipleViewPortsViewMode::UnLit;
+
 }
 
 // 범위를 검사한 뒤 Single 레이아웃 대상 View를 저장한다.
@@ -330,6 +336,12 @@ EGridPlane FMultipleViewportsAdapter::GetGridPlane(const int32 ViewIndex) const
     if (AbsZ >= AbsX && AbsZ >= AbsY) return EGridPlane::XY;
     if (AbsY >= AbsX) return EGridPlane::XZ;
     return EGridPlane::YZ;
+}
+
+EMultipleViewPortsViewMode FMultipleViewportsAdapter::GetViewMode(int32 ViewIndex) const
+{
+    assert(ViewIndex >= 0 && ViewIndex < 4);
+    return ViewModes[ViewIndex];
 }
 
 // Core Rect 계산 결과를 Single 대상 슬롯에 재배치하고 Hover·활성 View를 갱신한다.

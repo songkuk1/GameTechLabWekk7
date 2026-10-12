@@ -108,12 +108,16 @@ float FViewportsPanel::ConsumeVerticalDrag()
 }
 
 // Layout·Single 대상·Preset을 UI 표시와 동기화한다.
-void FViewportsPanel::SetControlState(const ELayoutMode LayoutMode, const int32 SingleViewIndex, const EMultipleViewportsCameraPreset CameraPresets[4])
+void FViewportsPanel::SetControlState(const ELayoutMode LayoutMode, const int32 SingleViewIndex, const EMultipleViewportsCameraPreset CameraPresets[4], const EMultipleViewPortsViewMode ViewModes[4])
 {
 	CurrentLayoutMode = LayoutMode;
 	CurrentSingleViewIndex = SingleViewIndex;
 	for (int32 Index = 0; Index < 4; ++Index)
+	{
 		CurrentCameraPresets[Index] = CameraPresets[Index];
+		CurrentViewModes[Index] = ViewModes[Index];
+	}
+		
 }
 
 // 대기 Layout 요청을 한 번 반환하고 플래그를 지운다.
@@ -246,12 +250,21 @@ void FViewportsPanel::OnRender()
 		// 레이아웃과 독립적으로 각 View의 장면 Fill Mode를 편집한다.
         if (ViewportAdapter)
         {
-            int Mode = ViewportAdapter->IsViewWireframe(ViewIndex) ? 1 : 0;
+            int FillMode = ViewportAdapter->IsViewWireframe(ViewIndex) ? 1 : 0;
             const char* Labels[] = {"Solid", "Wireframe"};
             ImGui::SetNextItemWidth(100.0f);
-            if (ImGui::Combo("##FillMode", &Mode, Labels, 2))
-                ViewportAdapter->SetViewWireframe(ViewIndex, Mode == 1);
+            if (ImGui::Combo("##FillMode", &FillMode, Labels, 2))
+                ViewportAdapter->SetViewWireframe(ViewIndex, FillMode == 1);
             ImGui::SameLine();
+			int ViewMode = static_cast<int>(ViewportAdapter->GetViewMode(ViewIndex));
+			const char* ViewModeLabels[] = { "UnLit", "Gouraud"};
+			ImGui::SetNextItemWidth(100.0f);
+			//TODO
+			if (ImGui::Combo("##ViewMode", &ViewMode, ViewModeLabels, IM_ARRAYSIZE(ViewModeLabels)))
+				//ViewportAdapter->SetViewMode(ViewIndex, static_cast<EMultipleViewPortsViewMode>(Mode));
+
+			ImGui::SameLine();
+
         }
         if (CurrentLayoutMode == ELayoutMode::QuadSplit)
 		{

@@ -8,7 +8,6 @@ struct FFXAAConstants
 	FVector2 InverseScreenSize;
 	FVector2 Padding;
 };
-
 class FFXAARenderer
 {
 public:
