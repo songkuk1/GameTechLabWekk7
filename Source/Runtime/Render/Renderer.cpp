@@ -9,6 +9,7 @@
 #include "Engine/PrimitiveSceneProxy.h"
 
 #include "RenderCommand.h"
+#include "RenderResourceManager.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -62,8 +63,13 @@ bool FRenderer::Init()
 	bUsePerObjectSlots = RenderCommand::SupportsConstantBufferOffsets();
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
-	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
 	DirectionalLightCB = RenderCommand::CreateConstantBuffer(sizeof(FDirectionalLightConstants));
+
+	// 라이트가 0개여도 t1/t2에 유효한 SRV가 묶이도록 처음부터 만들어 둔다
+	LightCB = RenderCommand::CreateConstantBuffer(sizeof(FLightConstants));
+	CameraCB = RenderCommand::CreateConstantBuffer(sizeof(FCameraConstants));
+	EnsureLightBufferCapacity(PointLightBuffer, 1, sizeof(FPointLightInfo));
+	EnsureLightBufferCapacity(SpotLightBuffer, 1, sizeof(FSpotLightInfo));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -142,8 +148,8 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
-	//여기에 라이트 전체 바인딩
+	//Light Bind
+	BindLights();
 
 
 	//이건 사실상 안쓰는 중인듯
@@ -156,7 +162,7 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 // RenderOpaque가 남긴 반투명 패킷을 먼 것부터 그린다.
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
-	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	BindLights();
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -464,7 +470,18 @@ void FRenderer::EndObjectConstants()
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
-	RenderCommand::BindShaderProgram(material->Shader);
+	// 머티리얼 에셋은 건드리지 않고, 이번 바인딩에서만 뷰 모드에 맞는 셰이더로 바꿔 끼운다.
+	FShaderProgram* Shader = material->Shader;
+	if (ViewMode != ERenderViewMode::Unlit)
+	{
+		ResolveViewModeShaders();
+		// 스태틱 메시 머티리얼만 바꾼다. 파티클·텍스트 등 다른 셰이더는 그대로 둔다.
+		FShaderProgram* ViewModeShader = ViewModeShaders[static_cast<uint32>(ViewMode)];
+		if (Shader == StaticMeshShader && ViewModeShader)
+			Shader = ViewModeShader;
+	}
+
+	RenderCommand::BindShaderProgram(Shader);
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
@@ -532,10 +549,119 @@ void FRenderer::UpdatePerObjectConstants(const FMatrix& World)
 	RenderCommand::UpdateBufferData(PerObjectCB.get(), &Constants);
 }
 
-void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
+void FRenderer::SetLights(const void* Source, uint32 Version, const FLightConstants& Constants, const TArray<FPointLightInfo>& PointLights, const TArray<FSpotLightInfo>& SpotLights)
 {
-	FireBallLightData = LightData;
-	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
+	if (Source == LastLightSource && Version == LastLightVersion)
+		return;   // 버퍼에 이미 같은 내용이 올라가 있다
+	LastLightSource = Source;
+	LastLightVersion = Version;
+
+	RenderCommand::UpdateBufferData(LightCB.get(), &Constants, sizeof(FLightConstants));
+	UploadLightBuffer(PointLightBuffer, PointLights.GetData(), static_cast<uint32>(PointLights.Num()), sizeof(FPointLightInfo));
+	UploadLightBuffer(SpotLightBuffer, SpotLights.GetData(), static_cast<uint32>(SpotLights.Num()), sizeof(FSpotLightInfo));
+}
+
+bool FRenderer::EnsureLightBufferCapacity(FLightStructuredBuffer& Target, uint32 Count, uint32 Stride)
+{
+	if (Count <= Target.Capacity && Target.Buffer && Target.SRV)
+		return true;
+
+	uint32 NewCapacity = std::max(Target.Capacity * 2, 16u);
+	while (NewCapacity < Count)
+		NewCapacity *= 2;
+
+	Target.Buffer.Reset();
+	Target.SRV.Reset();
+	Target.Capacity = 0;
+
+	D3D11_BUFFER_DESC Desc{};
+	Desc.ByteWidth = NewCapacity * Stride;
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	Desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	Desc.StructureByteStride = Stride;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC SrvDesc{};
+	SrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	SrvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	SrvDesc.Buffer.NumElements = NewCapacity;
+
+	ID3D11Device* Device = RenderCommand::GetDevice();
+	if (FAILED(Device->CreateBuffer(&Desc, nullptr, Target.Buffer.GetAddressOf())) ||
+		FAILED(Device->CreateShaderResourceView(Target.Buffer.Get(), &SrvDesc, Target.SRV.GetAddressOf())))
+	{
+		HTR_LOG(Warning, "Light structured buffer ({} x {} bytes) creation failed.", NewCapacity, Stride);
+		Target.Buffer.Reset();
+		Target.SRV.Reset();
+		return false;
+	}
+
+	Target.Capacity = NewCapacity;
+	return true;
+}
+
+void FRenderer::UploadLightBuffer(FLightStructuredBuffer& Target, const void* Data, uint32 Count, uint32 Stride)
+{
+	// 셰이더는 Count만큼만 읽으므로 0개면 올릴 것이 없다
+	if (Count == 0 || !EnsureLightBufferCapacity(Target, Count, Stride))
+		return;
+
+	D3D11_MAPPED_SUBRESOURCE Mapped{};
+	ID3D11DeviceContext* Context = RenderCommand::GetContext();
+	if (FAILED(Context->Map(Target.Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped)))
+		return;
+
+	std::memcpy(Mapped.pData, Data, static_cast<size_t>(Count) * Stride);
+	Context->Unmap(Target.Buffer.Get(), 0);
+}
+
+void FRenderer::ResolveViewModeShaders()
+{
+	if (bViewModeShadersResolved)
+		return;
+	bViewModeShadersResolved = true;
+
+	StaticMeshShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl");
+
+	// 뷰 모드 → UberLit 변형 매크로. 새 라이팅 모델은 여기에 한 줄 추가하고 셰이더에 #if 분기를 만든다.
+	struct FViewModeVariant
+	{
+		ERenderViewMode Mode;
+		const char* Define;
+	};
+	static const FViewModeVariant Variants[] =
+	{
+		{ ERenderViewMode::Lit_Gouraud, "LIGHTING_MODEL_GOURAUD" },
+		{ ERenderViewMode::Lit_Lambert, "LIGHTING_MODEL_LAMBERT" },
+		{ ERenderViewMode::Lit_Phong,   "LIGHTING_MODEL_PHONG" },
+	};
+
+	// 처음 한 번 모든 변형을 받아 둔다. 캐시(.cso)가 없으면 여기서 컴파일하므로 첫 프레임에 잠깐 멈출 수 있다.
+	// 실패한 변형은 nullptr로 남아 그 모드에서는 StaticMeshShader로 그린다.
+	for (const FViewModeVariant& Variant : Variants)
+	{
+		ViewModeShaders[static_cast<uint32>(Variant.Mode)] =
+			FRenderResourceManager::GetShaderProgram("Resources/Shader/UberLit.hlsl", { FShaderDefine{ Variant.Define, "1" } });
+	}
+}
+
+void FRenderer::SetCameraPosition(const FVector& InCameraPosition)
+{
+	FCameraConstants Constants{};
+	Constants.CameraPosition = InCameraPosition;
+	RenderCommand::UpdateBufferData(CameraCB.get(), &Constants, sizeof(FCameraConstants));
+}
+
+void FRenderer::BindLights()
+{
+	// Gouraud는 VS에서 라이트를 계산하므로 VS에도 묶는다
+	RenderCommand::BindConstantBuffer(4, LightCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(5, CameraCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
+
+	ID3D11ShaderResourceView* SRVs[2] = { PointLightBuffer.SRV.Get(), SpotLightBuffer.SRV.Get() };
+	RenderCommand::GetContext()->VSSetShaderResources(1, 2, SRVs);
+	RenderCommand::GetContext()->PSSetShaderResources(1, 2, SRVs);
 }
 
 void FRenderer::SetDirectionalLight(const FDirectionalLightConstants& LightData)

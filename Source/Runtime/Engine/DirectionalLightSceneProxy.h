@@ -15,6 +15,7 @@ public:
 	FDirectionalLightSceneProxy& operator=(const FDirectionalLightSceneProxy&) = delete;
 
 	virtual void UpdateFromComponent(const ULightComponent* InComponent) override;
+	virtual ELightType GetLightType() const override { return ELightType::Directional; }
 
 	// 빛이 향하는 방향 (월드). 위치는 의미 없음
 	FVector Direction;

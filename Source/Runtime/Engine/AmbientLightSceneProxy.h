@@ -15,6 +15,7 @@ public:
 	FAmbientLightSceneProxy& operator=(const FAmbientLightSceneProxy&) = delete;
 
 	virtual void UpdateFromComponent(const ULightComponent* InComponent) override;
+	virtual ELightType GetLightType() const override { return ELightType::Ambient; }
 
 	// 위치/방향 없이 전역으로 더해지는 빛
 

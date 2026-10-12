@@ -344,6 +344,12 @@ EMultipleViewPortsViewMode FMultipleViewportsAdapter::GetViewMode(int32 ViewInde
     return ViewModes[ViewIndex];
 }
 
+void FMultipleViewportsAdapter::SetViewMode(int32 ViewIndex, EMultipleViewPortsViewMode ViewMode)
+{
+    assert(ViewIndex >= 0 && ViewIndex < 4);
+    ViewModes[ViewIndex] = ViewMode;
+}
+
 // Core Rect 계산 결과를 Single 대상 슬롯에 재배치하고 Hover·활성 View를 갱신한다.
 void FMultipleViewportsAdapter::UpdateLayout(const FVector2 WindowSize, const FVector2 LocalMousePosition)
 {

@@ -58,7 +58,7 @@ public:
 
     //지정 View에 적용된 카메라 뷰 모드를 반환한다.
     EMultipleViewPortsViewMode GetViewMode(int32 ViewIndex) const;
-
+    void SetViewMode(int32 ViewIndex, EMultipleViewPortsViewMode ViewMode);
 
     // 레이아웃 Rect를 계산하고 마우스 위치로 Hover·활성 View를 갱신한다.
     void UpdateLayout(FVector2 WindowSize, FVector2 LocalMousePosition);

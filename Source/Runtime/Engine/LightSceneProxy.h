@@ -3,6 +3,15 @@
 class FScene;
 class ULightComponent;
 
+// FScene이 프록시를 GPU 버퍼별로 나눌 때 쓴다
+enum class ELightType : uint8
+{
+	Ambient,
+	Directional,
+	Point,
+	Spot,
+};
+
 class FLightSceneProxy
 {
 public:
@@ -14,6 +23,8 @@ public:
 
 	// 컴포넌트 값을 프록시로 다시 복사한다. 생성 시와 dirty 처리 시(FScene) 호출
 	virtual void UpdateFromComponent(const ULightComponent* InComponent);
+
+	virtual ELightType GetLightType() const = 0;
 
 	FVector Position;
 

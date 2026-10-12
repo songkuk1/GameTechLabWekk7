@@ -1,5 +1,6 @@
 #pragma pack_matrix(row_major)
 
+
 struct VSInput
 {
     float3 Position : POSITION;
@@ -66,6 +67,12 @@ cbuffer LightBuffer : register(b4)
     float2 _lightPad;
 };
 
+cbuffer CameraConstants : register(b5)
+{
+    float3 CameraPosition;
+    float _cameraPad;
+};
+
 StructuredBuffer<PointLightInfo> g_PointLights : register(t1);
 StructuredBuffer<SpotLightInfo> g_SpotLights : register(t2);
 
@@ -74,43 +81,91 @@ float DistanceAtten(float Dist, float Radius, float Falloff)
     return pow(saturate(1.0 - Dist / Radius), Falloff);
 }
 
-float3 CalcPointLight(PointLightInfo L, float3 WorldPos, float3 N)
-{
-    float3 ToLight = L.Position - WorldPos;
-    float Dist = length(ToLight);
-    float3 Dir = ToLight / Dist;
+// 반사 지수. 클수록 하이라이트가 작고 날카롭다. 나중에 머티리얼 파라미터로 뺀다.
+static const float Shininess = 64.0f;
 
-    float NdotL = saturate(dot(N, Dir));
-    float Atten = DistanceAtten(Dist, L.AttenuationRadius, L.Falloff);
-    return L.ColorIntensity.rgb * L.ColorIntensity.w * NdotL * Atten;
+float3 CalcSpecular(float3 N, float3 L, float3 V, float3 Radiance)
+{
+    float3 H = normalize(L + V);
+    return Radiance * pow(saturate(dot(N, H)), Shininess);
 }
 
-float3 CalcSpotLight(SpotLightInfo L, float3 WorldPos, float3 N)
+struct FLightResult
+{
+    float3 Diffuse;
+    float3 Specular;
+};
+
+FLightResult CalcLightTerm(float3 N, float3 L, float3 V, float3 Radiance)
+{
+    FLightResult R;
+    float NdotL = saturate(dot(N, L));
+    R.Diffuse = Radiance * NdotL;
+    R.Specular = 0;
+
+#if LIGHTING_MODEL_PHONG
+    // 빛이 닿지 않는 뒷면에는 하이라이트를 만들지 않는다
+    if (NdotL > 0.0f)
+        R.Specular = CalcSpecular(N, L, V, Radiance);
+#endif
+    return R;
+}
+
+FLightResult CalcPointLight(PointLightInfo L, float3 WorldPos, float3 N, float3 V)
 {
     float3 ToLight = L.Position - WorldPos;
     float Dist = length(ToLight);
-    float3 Dir = ToLight / Dist;
+    float3 Dir = ToLight / max(Dist, 0.0001f);
 
-    float CosAngle = dot(-Dir, normalize(L.Direction)); 
+    float Atten = DistanceAtten(Dist, L.AttenuationRadius, L.Falloff);
+    return CalcLightTerm(N, Dir, V, L.ColorIntensity.rgb * L.ColorIntensity.w * Atten);
+}
+
+FLightResult CalcSpotLight(SpotLightInfo L, float3 WorldPos, float3 N, float3 V)
+{
+    float3 ToLight = L.Position - WorldPos;
+    float Dist = length(ToLight);
+    float3 Dir = ToLight / max(Dist, 0.0001f);
+
+    float CosAngle = dot(-Dir, normalize(L.Direction));
     float ConeAtten = smoothstep(L.CosOuter, L.CosInner, CosAngle);
 
-    float NdotL = saturate(dot(N, Dir));
     float Atten = DistanceAtten(Dist, L.AttenuationRadius, L.Falloff) * ConeAtten;
-    return L.ColorIntensity.rgb * L.ColorIntensity.w * NdotL * Atten;
+    return CalcLightTerm(N, Dir, V, L.ColorIntensity.rgb * L.ColorIntensity.w * Atten);
 }
 
-float3 CalcAllLights(float3 WorldPos, float3 N)
-{
-    float3 Result = AmbientLight.ColorIntensity.rgb * AmbientLight.ColorIntensity.w;
 
-    float3 DirL = -normalize(DirectionalLight.Direction.xyz);
-    Result += DirectionalLight.ColorIntensity.rgb * DirectionalLight.ColorIntensity.w
-            * saturate(dot(N, DirL));
+FLightResult CalcAllLights(float3 WorldPos, float3 N, float3 V)
+{
+    //Ambient 값 
+    FLightResult Result;
+    Result.Diffuse = AmbientLight.ColorIntensity.rgb * AmbientLight.ColorIntensity.w;
+    Result.Specular = 0;
+
+    // Direction이 0이면(Directional 라이트 없음) normalize가 NaN이 되어 결과 전체가 깨지므로 길이로 거른다
+    float3 DirLightDir = DirectionalLight.Direction.xyz;
+
+    if (dot(DirLightDir, DirLightDir) > 0.0f)
+    {
+        float3 DirL = -normalize(DirLightDir);
+        FLightResult R = CalcLightTerm(N, DirL, V, DirectionalLight.ColorIntensity.rgb * DirectionalLight.ColorIntensity.w);
+        Result.Diffuse += R.Diffuse;
+        Result.Specular += R.Specular;
+    }
 
     for (uint i = 0; i < PointLightCount; ++i)
-        Result += CalcPointLight(g_PointLights[i], WorldPos, N);
+    {
+        FLightResult R = CalcPointLight(g_PointLights[i], WorldPos, N, V);
+        Result.Diffuse += R.Diffuse;
+        Result.Specular += R.Specular;
+    }
+
     for (uint j = 0; j < SpotLightCount; ++j)
-        Result += CalcSpotLight(g_SpotLights[j], WorldPos, N);
+    {
+        FLightResult R = CalcSpotLight(g_SpotLights[j], WorldPos, N, V);
+        Result.Diffuse += R.Diffuse;
+        Result.Specular += R.Specular;
+    }
     return Result;
 }
 
@@ -126,8 +181,9 @@ PSInput mainVS(VSInput Input)
     Out.UV = Input.UV;
 
 #if LIGHTING_MODEL_GOURAUD
-    float3 Light = CalcAllLights(WorldPos.xyz, WorldN);
-    Out.Color    = float4(Light * Input.Color.rgb, Input.Color.a);   
+    float3 V = normalize(CameraPosition - WorldPos.xyz);
+    FLightResult Light = CalcAllLights(WorldPos.xyz, WorldN, V);
+    Out.Color    = float4(Light.Diffuse * Input.Color.rgb + Light.Specular, Input.Color.a);
 #else
     Out.Color = Input.Color; // Lambert/Phong은 PS에서 계산
 #endif
@@ -136,10 +192,17 @@ PSInput mainVS(VSInput Input)
 
 float4 mainPS(PSInput Input) : SV_Target
 {
+    float4 finalPixel = Input.Color;
+    
 #if LIGHTING_MODEL_GOURAUD
-    return Input.Color;
-#else
+#elif LIGHTING_MODEL_LAMBERT || LIGHTING_MODEL_PHONG
+   
     float3 N = normalize(Input.Normal);
-    return float4(CalcAllLights(Input.worldPos, N) * Input.Color.rgb, Input.Color.a);
+    float3 V = normalize(CameraPosition - Input.worldPos);
+    FLightResult Light = CalcAllLights(Input.worldPos, N, V);   // Lambert면 Specular는 0
+    finalPixel = float4(Light.Diffuse * Input.Color.rgb + Light.Specular, Input.Color.a);
 #endif
+    
+    return finalPixel;
+
 }

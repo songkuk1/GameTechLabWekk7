@@ -1,7 +1,9 @@
 #include "EnginePCH.h"
 #include "RenderUtil.h"
 
-FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType)
+#include <algorithm>
+
+FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType, const TArray<FShaderDefine>& Defines)
 {
 	const char* Target = (ShaderType == EShaderType::Vertex) ? "vs_5_0" : "ps_5_0";
 
@@ -14,8 +16,15 @@ FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, 
 
 	std::wstring WPath(Path.begin(), Path.end());
 
+	// D3D_SHADER_MACRO는 문자열 포인터만 들고 있으므로 Defines가 컴파일이 끝날 때까지 살아 있어야 한다. 끝은 {nullptr, nullptr}.
+	std::vector<D3D_SHADER_MACRO> Macros;
+	Macros.reserve(static_cast<size_t>(Defines.Num()) + 1);
+	for (const FShaderDefine& Define : Defines)
+		Macros.push_back({ Define.Name.c_str(), Define.Value.c_str() });
+	Macros.push_back({ nullptr, nullptr });
+
 	ComPtr<ID3DBlob> ErrorBlob;
-	HRESULT hr = D3DCompileFromFile(WPath.c_str(), nullptr, nullptr, EntryPoint, Target, 0, 0, ByteCode.Blob.GetAddressOf(), ErrorBlob.GetAddressOf());
+	HRESULT hr = D3DCompileFromFile(WPath.c_str(), Macros.data(), nullptr, EntryPoint, Target, 0, 0, ByteCode.Blob.GetAddressOf(), ErrorBlob.GetAddressOf());
 
 	if (FAILED(hr))
 	{
@@ -56,14 +65,43 @@ FShaderByteCode RenderUtil::LoadByteCode(const FString& CsoPath)
 	return Result;
 }
 
-FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType)
+FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const TArray<FShaderDefine>& Defines)
 {
 	const fs::path Rel = fs::relative(ShaderPath, "Resources/Shader");
 	const char* Suffix = (ShaderType == EShaderType::Vertex) ? "_VS.cso" : "_PS.cso";
 
+	// 예: UberLit__LIGHTING_MODEL_PHONG_VS.cso (값이 "1"이 아니면 _값까지 붙인다)
+	FString VariantName;
+	for (const FShaderDefine& Define : SortDefines(Defines))
+	{
+		VariantName += "__" + Define.Name;
+		if (Define.Value != "1")
+			VariantName += "_" + Define.Value;
+	}
+
 	fs::path Out = fs::path("Intermediate/Shaders") / Rel.parent_path();
-	Out /= Rel.stem().generic_string() + Suffix;
+	Out /= Rel.stem().generic_string() + VariantName + Suffix;
 	return Out.generic_string();
+}
+
+TArray<FShaderDefine> RenderUtil::SortDefines(const TArray<FShaderDefine>& Defines)
+{
+	TArray<FShaderDefine> Sorted = Defines;
+	std::sort(Sorted.GetData(), Sorted.GetData() + Sorted.Num(),
+		[](const FShaderDefine& A, const FShaderDefine& B) { return A.Name < B.Name; });
+	return Sorted;
+}
+
+FString RenderUtil::MakeDefinesKey(const TArray<FShaderDefine>& Defines)
+{
+	FString Key;
+	for (const FShaderDefine& Define : SortDefines(Defines))
+	{
+		if (!Key.empty())
+			Key += ";";
+		Key += Define.Name + "=" + Define.Value;
+	}
+	return Key;
 }
 
 // .cso 파일이 최신 컴파일인지 비교한다.
@@ -80,9 +118,9 @@ bool RenderUtil::IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath
 	return CsoTime > SrcTime;
 }
 
-FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType, FString& OutCSOPath)
+FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType, FString& OutCSOPath, const TArray<FShaderDefine>& Defines)
 {
-	OutCSOPath = GetCsoPath(ShaderPath, ShaderType);
+	OutCSOPath = GetCsoPath(ShaderPath, ShaderType, Defines);
 
 	if (IsCsoUpToDate(ShaderPath, OutCSOPath))
 	{
@@ -90,7 +128,7 @@ FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* 
 		if (Cached.IsValid()) return Cached;
 	}
 
-	FShaderByteCode Compiled = CompileShader(ShaderPath, EntryPoint, ShaderType);
+	FShaderByteCode Compiled = CompileShader(ShaderPath, EntryPoint, ShaderType, Defines);
 	if (Compiled.IsValid())
 		SaveByteCode(OutCSOPath, Compiled);
 

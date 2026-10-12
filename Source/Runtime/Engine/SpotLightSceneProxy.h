@@ -15,6 +15,7 @@ public:
 	FSpotLightSceneProxy& operator=(const FSpotLightSceneProxy&) = delete;
 
 	virtual void UpdateFromComponent(const ULightComponent* InComponent) override;
+	virtual ELightType GetLightType() const override { return ELightType::Spot; }
 
 	// 원뿔 중심축 방향 (월드)
 	FVector Direction;

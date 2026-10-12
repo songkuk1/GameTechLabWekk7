@@ -413,8 +413,6 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			// FireBall 라이트 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateDirectionalLight(Renderer);
 			CapturedWorld = ViewWorld;
 		}
@@ -445,7 +443,6 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
@@ -865,6 +862,17 @@ void UEditorEngine::UpdateGizmoAndPicking()
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
 void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
+	
+	ViewWorld.GetScene().UpdateLights(Renderer);
+
+	// 뷰포트마다 셰이딩 모드와 카메라가 다르므로 그리기 전에 렌더러에 알린다.
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::UnLit) == static_cast<int>(ERenderViewMode::Unlit));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Gouraud) == static_cast<int>(ERenderViewMode::Lit_Gouraud));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Lambert) == static_cast<int>(ERenderViewMode::Lit_Lambert));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Phong) == static_cast<int>(ERenderViewMode::Lit_Phong));
+	Renderer->SetViewMode(static_cast<ERenderViewMode>(MultipleViewportsAdapter.GetViewMode(ViewIndex)));
+	Renderer->SetCameraPosition(ViewCameraLocation);
+
 	// 1. 불투명 Pass
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 

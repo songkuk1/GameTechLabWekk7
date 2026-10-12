@@ -9,7 +9,8 @@ ADirectionalLightActor::ADirectionalLightActor()
 	DirectionArrow = CreateDefaultSubobject<UStaticMeshComponent>("UStaticMeshComponent");
 	DirectionArrow->SetStaticMesh(UAssetManager::GetAssetByPath<UStaticMesh>("Arrow"));
 	DirectionArrow->SetupAttachment(GetRootComponent(), EAttachmentRule::SnapToTarget);
-	DirectionArrow->SetRelativeScale3D({ 0.2f,0.2f,0.5f });
+	DirectionArrow->SetRelativeScale3D({ 0.2f, 0.2f, 0.5f });
+	DirectionArrow->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
 
 	Icon = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
 

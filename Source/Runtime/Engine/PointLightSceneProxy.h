@@ -15,6 +15,7 @@ public:
 	FPointLightSceneProxy& operator=(const FPointLightSceneProxy&) = delete;
 
 	virtual void UpdateFromComponent(const ULightComponent* InComponent) override;
+	virtual ELightType GetLightType() const override { return ELightType::Point; }
 
 	// 빛이 닿는 거리
 	float AttenuationRadius = 5.0f;

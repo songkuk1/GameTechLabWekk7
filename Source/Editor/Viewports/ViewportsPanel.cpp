@@ -257,13 +257,17 @@ void FViewportsPanel::OnRender()
                 ViewportAdapter->SetViewWireframe(ViewIndex, FillMode == 1);
             ImGui::SameLine();
 			int ViewMode = static_cast<int>(ViewportAdapter->GetViewMode(ViewIndex));
-			const char* ViewModeLabels[] = { "UnLit", "Gouraud"};
+			// EMultipleViewPortsViewMode 순서와 같다
+			const char* ViewModeLabels[] = { "UnLit", "Gouraud", "Lambert", "Phong" };
 			ImGui::SetNextItemWidth(100.0f);
-			//TODO
+			
 			if (ImGui::Combo("##ViewMode", &ViewMode, ViewModeLabels, IM_ARRAYSIZE(ViewModeLabels)))
-				//ViewportAdapter->SetViewMode(ViewIndex, static_cast<EMultipleViewPortsViewMode>(Mode));
+			{	
+				ViewportAdapter->SetViewMode(ViewIndex, static_cast<EMultipleViewPortsViewMode>(ViewMode));
 
-			ImGui::SameLine();
+				ImGui::SameLine();
+			}
+
 
         }
         if (CurrentLayoutMode == ELayoutMode::QuadSplit)
