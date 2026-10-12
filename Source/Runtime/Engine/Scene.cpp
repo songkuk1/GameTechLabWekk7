@@ -378,13 +378,15 @@ void FScene::UpdatePointLight(FRenderer* Renderer)
 			continue;
 
 		Data.Position = PointLight->GetWorldLocation();
-		Data.Radius = PointLight->GetAttenuationRadius();
+		Data.Radius = PointLight->GetRadius();
 		Data.LightColor = PointLight->GetLightColor();
 		Data.Intensity = PointLight->GetIntensity();
 		Data.Attenuation = PointLight->GetFalloff();
 		const FVector4 Color = PointLight->GetLightColor();
 
+		Data.Radius = std::max<float>(PointLight->GetRadius(), 0.001f);
 		Data.Intensity = std::max<float>(PointLight->GetIntensity(), 0.0f);
+		Data.Attenuation = std::max<float>(PointLight->GetFalloff(), 0.0001f);
 
 		Constants.Light[Constants.LightCount] = Data;
 		Constants.LightCount++;

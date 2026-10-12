@@ -93,7 +93,7 @@ void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 
 		// 에디터에서 값을 직접 드래그하므로 범위를 신뢰할 수 없다.
 		// tan(90도)는 무한대라 원뿔 정점이 NaN이 되므로 여기서 막는다.
-		const float SafeRadius = (AttenuationRadius > 0.0f) ? AttenuationRadius : 0.0f;
+		const float SafeRadius = (Radius > 0.0f) ? Radius : 0.0f;
 
 		// 바깥 원뿔은 라이트 색 그대로, 안쪽은 구분되도록 흐리게
 		AddWireCircle(LineBatcher, Apex, u, v, SafeRadius, LightColor);

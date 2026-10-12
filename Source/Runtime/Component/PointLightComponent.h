@@ -9,9 +9,7 @@ class UPointLightComponent : public ULightComponent
 	DECLARE_CLASS(UPointLightComponent, ULightComponent)
 
 	REFLECT_START(ClassName)
-		PROPERTY(InnerConeAngle)
-		PROPERTY(OuterConeAngle)
-		PROPERTY(AttenuationRadius)
+		PROPERTY(Radius)
 		PROPERTY(Falloff)
 		PROPERTY(Intensity)
 		PROPERTY_TYPE(LightColor, Color)
@@ -25,31 +23,21 @@ public:
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
-	float GetInnerConeAngle() const { return InnerConeAngle; }
-	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }
-
-	float GetOuterConeAngle() const { return OuterConeAngle; }
-	void SetOuterConeAngle(float InAngle) { OuterConeAngle = InAngle; }
-
 	float GetFalloff() const { return Falloff; }
-	void SetFalloff(float InFalloff) { Falloff = InFalloff; }
+	void SetFalloff(float InFalloff) { Falloff = std::max(0.001f, InFalloff); }
 
 	float GetIntensity() const { return Intensity; }
 	void SetIntensity(float InIntensity) { Intensity = InIntensity; }
 		
-	float GetAttenuationRadius() const { return AttenuationRadius; }
-	void SetAttenuationRadius(float InRadius) { AttenuationRadius = InRadius; }
+	float GetRadius() const { return Radius; }
+	void SetRadius(float InRadius) { Radius = std::max(0.001f, InRadius); }
 
 	const FVector4& GetLightColor() const { return LightColor; }
 	void SetLightColor(const FVector4& InColor) { LightColor = InColor; }
 
 private:
-	// 원뿔 중심축 기준 반각(도). 
-	float InnerConeAngle = 15.0f;
-	float OuterConeAngle = 30.0f;
-
 	// 빛이 닿는 거리
-	float AttenuationRadius = 5.0f;
+	float Radius = 5.0f;
 
 	// Inner에서 Outer로 가며 밝기가 떨어지는 정도.
 	float Falloff = 1.0f;

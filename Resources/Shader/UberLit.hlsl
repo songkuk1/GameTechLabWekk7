@@ -108,8 +108,8 @@ float3 CalculatePointLight(PS_INPUT input, FPointLightInfo PointLightInfo)
     float3 lightDir = normalize(PointLightInfo.Position - input.worldPos);
     float pointNdotL = saturate(dot(normalize(input.normal), lightDir));
     float distance = length(input.worldPos.xyz - PointLightInfo.Position);
-    float Attenuation = clamp(1.0f - distance / PointLightInfo.Radius, 0.0f, 1.0f);
-    Attenuation = pow(Attenuation, PointLightInfo.AttenuationConstant);
+    float Attenuation = clamp(1.0f - distance / max(PointLightInfo.Radius, 0.001f), 0.0f, 1.0f);
+    Attenuation = pow(Attenuation, max(PointLightInfo.AttenuationConstant, 0.0001f));
     
     outputColor = PointLightInfo.LightColor.rgb * PointLightInfo.Intensity * pointNdotL * Attenuation;
     
