@@ -7,7 +7,7 @@ struct FPointLightInfo
     float4 LightColor;
     float Intensity;
     float AttenuationConstant;
-    float Padding[2];
+    float2 Padding;
 };
 
 cbuffer Viewconstants : register(b0)
@@ -30,8 +30,9 @@ cbuffer Worldconstants : register(b2)
 
 cbuffer Lighting : register(b4)
 {
-    static const uint NUM_POINT_LIGHT = 8;
-    //FPointLightInfo PointLights[NUM_POINT_LIGHT];
+    FPointLightInfo PointLights[16];
+    uint PointLightCount;
+    float3 LightingPadding;
 };
 
 Texture2D g_txColor : register(t0);
@@ -85,22 +86,11 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     float4 texColor = g_txColor.Sample(g_Sample, input.uv + UVOffset);
     float4 albedo = texColor * BaseColor;
     
-    // -------- 수정 필요 ----------
-    // 빛 정보 임시로 만든거임!!!!!!
-    // -----------------------------
-    
-    FPointLightInfo PointLights[1];
-    PointLights[0].Position = float3(3.0f, -3.0f, 3.0f);
-    PointLights[0].Radius = 10.0f;
-    PointLights[0].LightColor = float4(1.0f, 0.0f, 0.0f, 0.0f);
-    PointLights[0].Intensity = 5.0f;
-    PointLights[0].AttenuationConstant = 5.0f;
-    
     float3 totalPointLight = float3(0, 0, 0);
-    //for (uint i = 0; i < NUM_POINT_LIGHT; ++i)
-    //{
-        totalPointLight += CalculatePointLight(input, PointLights[0]);
-    //}
+    for (uint i = 0; i < PointLightCount; ++i)
+    {
+        totalPointLight += CalculatePointLight(input, PointLights[i]);
+    }
     
     static const float3 AmbientColor = float3(0.5f, 0.5f, 0.5f);
     
@@ -113,7 +103,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
 
 float3 CalculatePointLight(PS_INPUT input, FPointLightInfo PointLightInfo)
 {
-    float3 outputColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    float3 outputColor = float3(0.0f, 0.0f, 0.0f);
     
     float3 lightDir = normalize(PointLightInfo.Position - input.worldPos);
     float pointNdotL = saturate(dot(normalize(input.normal), lightDir));
