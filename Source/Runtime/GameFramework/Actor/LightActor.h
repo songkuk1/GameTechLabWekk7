@@ -17,6 +17,8 @@ public:
 	UBillboardComponent* GetBillboardComponent() const { return BillboardComponent; }
 	ULightComponent* GetLightComponent() const { return LightComponent; }
 	void SetLightComponent(ULightComponent* InLightComponent) { LightComponent = InLightComponent; }
+	virtual void OnSelected();
+	virtual void OnDeselected();
 
 public:
 	ALightActor();

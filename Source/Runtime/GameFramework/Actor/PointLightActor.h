@@ -14,4 +14,18 @@ class APointLightActor : public ALightActor
 public:
 	APointLightActor();
 	virtual ~APointLightActor() override = default;
+	void OnSelected() override;
+	void OnDeselected() override;
+
+private:
+	UBillboardComponent* Icon;
+	UPointLightComponent* PointLight;
+	UMaterial* onMaterial;
+	UMaterial* offMaterial;
+
+private:
+	const FString UnHighLightedPointLightIconPath =
+		"Assets/Icons/Component/UnHighLightedPointLight.png";
+	const FString HighLightedPointLightOnPath =
+		"Assets/Icons/Component/HighLightedPointLight.png";
 };
