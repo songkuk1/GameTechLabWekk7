@@ -474,7 +474,9 @@ void FRenderer::BindMaterial(UMaterial* material)
 	FShaderProgram* Shader = material->Shader;
 	if (ViewMode != ERenderViewMode::Unlit)
 	{
+		
 		ResolveViewModeShaders();
+
 		// 스태틱 메시 머티리얼만 바꾼다. 파티클·텍스트 등 다른 셰이더는 그대로 둔다.
 		FShaderProgram* ViewModeShader = ViewModeShaders[static_cast<uint32>(ViewMode)];
 		if (Shader == StaticMeshShader && ViewModeShader)
@@ -624,7 +626,7 @@ void FRenderer::ResolveViewModeShaders()
 
 	StaticMeshShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl");
 
-	// 뷰 모드 → UberLit 변형 매크로. 새 라이팅 모델은 여기에 한 줄 추가하고 셰이더에 #if 분기를 만든다.
+	
 	struct FViewModeVariant
 	{
 		ERenderViewMode Mode;

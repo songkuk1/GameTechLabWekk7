@@ -129,7 +129,7 @@ FLightResult CalcSpotLight(SpotLightInfo L, float3 WorldPos, float3 N, float3 V)
 
     float CosAngle = dot(-Dir, normalize(L.Direction));
     float ConeAtten = smoothstep(L.CosOuter, L.CosInner, CosAngle);
-
+    //ConeAtten = saturate((L.CosOuter - CosAngle) / (L.CosOuter - L.CosInner));;
     float Atten = DistanceAtten(Dist, L.AttenuationRadius, L.Falloff) * ConeAtten;
     return CalcLightTerm(N, Dir, V, L.ColorIntensity.rgb * L.ColorIntensity.w * Atten);
 }

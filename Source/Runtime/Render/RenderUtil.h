@@ -30,8 +30,6 @@ public:
 	static bool IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath);
 	static FShaderByteCode GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType, FString& OutCSOPath, const TArray<FShaderDefine>& Defines = {});
 
-	// 이름순으로 정렬한 매크로 조합. 순서만 다른 같은 조합이 따로 컴파일되지 않게 한다.
-	static TArray<FShaderDefine> SortDefines(const TArray<FShaderDefine>& Defines);
 	// 셰이더 맵 키에 붙일 문자열. 예: "LIGHTING_MODEL_PHONG=1". 매크로가 없으면 빈 문자열.
 	static FString MakeDefinesKey(const TArray<FShaderDefine>& Defines);
 };

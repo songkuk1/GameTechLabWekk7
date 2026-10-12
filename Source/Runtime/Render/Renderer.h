@@ -28,14 +28,14 @@ class FShaderProgram;
 // 에디터의 EMultipleViewPortsViewMode와 값 순서를 맞춘다.
 enum class ERenderViewMode : uint8
 {
-	Unlit,          // StaticMeshShader 그대로
-	Lit_Gouraud,    // UberLit + LIGHTING_MODEL_GOURAUD
-	Lit_Lambert,    // UberLit + LIGHTING_MODEL_LAMBERT
-	Lit_Phong,      // UberLit + LIGHTING_MODEL_PHONG
+	Unlit,          
+	Lit_Gouraud,  
+	Lit_Lambert,   
+	Lit_Phong,     
 	Count
 };
 
-// CameraConstants (b5). Phong 스페큘러 등 뷰 방향이 필요한 셰이더가 쓴다. 뷰마다 다르다.
+//Phong 스페큘러 등 뷰 방향이 필요한 셰이더가 쓴다. 뷰마다 다르다.
 struct alignas(16) FCameraConstants
 {
 	FVector CameraPosition;   // 월드 공간 카메라 위치

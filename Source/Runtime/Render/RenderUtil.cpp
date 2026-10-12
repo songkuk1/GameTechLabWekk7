@@ -72,7 +72,7 @@ FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType
 
 	// 예: UberLit__LIGHTING_MODEL_PHONG_VS.cso (값이 "1"이 아니면 _값까지 붙인다)
 	FString VariantName;
-	for (const FShaderDefine& Define : SortDefines(Defines))
+	for (const FShaderDefine& Define : Defines)
 	{
 		VariantName += "__" + Define.Name;
 		if (Define.Value != "1")
@@ -84,18 +84,10 @@ FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType
 	return Out.generic_string();
 }
 
-TArray<FShaderDefine> RenderUtil::SortDefines(const TArray<FShaderDefine>& Defines)
-{
-	TArray<FShaderDefine> Sorted = Defines;
-	std::sort(Sorted.GetData(), Sorted.GetData() + Sorted.Num(),
-		[](const FShaderDefine& A, const FShaderDefine& B) { return A.Name < B.Name; });
-	return Sorted;
-}
-
 FString RenderUtil::MakeDefinesKey(const TArray<FShaderDefine>& Defines)
 {
 	FString Key;
-	for (const FShaderDefine& Define : SortDefines(Defines))
+	for (const FShaderDefine& Define : Defines)
 	{
 		if (!Key.empty())
 			Key += ";";

@@ -50,12 +50,15 @@ FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath)
 
 FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath, const TArray<FShaderDefine>& Defines)
 {
+	//경로 + | + Define 으로 키를 만듬 
 	const FString Key = MakeProgramKey(InPath, Defines);
 	if (TUniquePtr<FShaderProgram>* Found = Get().ShaderProgramMap.Find(Key))
 		return Found->get();
 
+	//위에서 찾아봤는데 없으면 LoadOrCompileShader로 만들기
 	Get().LoadOrCompileShader(InPath, Defines);
 
+	//만들었으니까 다시 탐색
 	if (TUniquePtr<FShaderProgram>* Found = Get().ShaderProgramMap.Find(Key))
 		return Found->get();
 	return nullptr;
