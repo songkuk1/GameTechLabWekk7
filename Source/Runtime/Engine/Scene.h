@@ -3,8 +3,10 @@
 #include "PrimitiveSceneProxy.h"
 #include "Component/BillboardComponent.h"
 #include "Component/PrimitiveComponent.h"
-#include "Component/FireBallComponent.h"
+#include "Component/PointLightComponent.h"
 #include "Component/DirectionalLightComponent.h"
+#include "Component/SpotLightComponent.h"
+#include "Component/AmbientLightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
@@ -16,7 +18,6 @@ struct FExponentialHeightFogSceneInfo
 	uint32 Id;
 	FFogInfo FogInfo;
 };
-
 
 class FScene
 {
@@ -37,16 +38,21 @@ public:
 	void MarkDirty(FPrimitiveSceneProxy* Proxy);
 	void MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy);
 
-	// Todo : LightComponent로 묶게 되면서 상위 클래스에서 해당 함수를 통일하게 할 것인가?
-
-	void UpdateFireBallLight(FRenderer* Renderer);
-	void RegisterFireBall(UFireBallComponent* FireBall);
-	void UnregisterFireBall(UFireBallComponent* FireBall);
+	void UpdatePointLight(FLightRenderer* Renderer);
+	void RegisterPointLight(UPointLightComponent* PointLight);
+	void UnregisterPointLight(UPointLightComponent* PointLight);
 	
 	void UpdateDirectionalLight(FLightRenderer* Renderer);
 	void RegisterDirectLight(UDirectionalLightComponent* DLightComp);
 	void UnregisterDirectLight(UDirectionalLightComponent* DLightComp);
 
+	void UpdateSpotLight(FLightRenderer* Renderer);
+	void RegisterSpotLight(USpotLightComponent* SLightComp);
+	void UnregisterSpotLight(USpotLightComponent* SLightComp);
+
+	void UpdateAmbientLight(FLightRenderer* Renderer);
+	void RegisterAmbientLight(UAmbientLightComponent* ALightComp);
+	void UnregisterAmbientLight(UAmbientLightComponent* ALightComp);
 
 	TArray<FPrimitiveSceneProxy*> Proxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
@@ -66,6 +72,8 @@ public:
 	};
 	bool bElementListChanged = false;
 	
-	TArray<UFireBallComponent*> FireBallComponents;
+	TArray<UPointLightComponent*> PointLightComponents;
 	TArray<UDirectionalLightComponent*> DirectionalLightComponents;
+	TArray<USpotLightComponent*> SpotLightComponents;
+	UAmbientLightComponent* AmbientLightComponent;
 };

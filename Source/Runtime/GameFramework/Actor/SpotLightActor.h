@@ -14,4 +14,10 @@ class ASpotLightActor : public ALightActor
 public:
 	ASpotLightActor();
 	virtual ~ASpotLightActor() override = default;
+
+private:
+	const FString UnHighLightedSpotLightIconPath =
+		"Assets/Icons/Component/UnHighLightedSpotLight.png";
+	const FString HighLightedSpotLightOnPath =
+		"Assets/Icons/Component/HighLightedSpotLight.png";
 };

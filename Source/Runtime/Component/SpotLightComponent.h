@@ -8,8 +8,6 @@ class USpotLightComponent : public ULightComponent
 {
 
 	DECLARE_CLASS(USpotLightComponent, ULightComponent)
-
-
 	REFLECT_START(ClassName)
 		PROPERTY(InnerConeAngle)
 		PROPERTY(OuterConeAngle)
@@ -21,7 +19,9 @@ class USpotLightComponent : public ULightComponent
 
 public:
 	USpotLightComponent() = default;
-	virtual ~USpotLightComponent() override = default;
+	virtual ~USpotLightComponent() override;
+
+	void InitializeComponent();
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
@@ -33,6 +33,9 @@ public:
 
 	float GetFalloff() const { return Falloff; }
 	void SetFalloff(float InFalloff) { Falloff = InFalloff; }
+
+	float GetIntensity() const { return Intensity; }
+	void SetIntensity(float InIntensity) { Intensity = InIntensity; }
 
 	float GetAttenuationRadius() const { return AttenuationRadius; }
 	void SetAttenuationRadius(float InRadius) { AttenuationRadius = InRadius; }

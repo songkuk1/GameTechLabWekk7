@@ -93,10 +93,18 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 			Scene.AddPrimitive(Primitive);
 		else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
 			Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+		/*
 		else if (UFireBallComponent* FireBall = Cast<UFireBallComponent>(Component))
 			Scene.RegisterFireBall(FireBall);
+			*/
 		else if (UDirectionalLightComponent* DirectLight = Cast<UDirectionalLightComponent>(Component))
 			Scene.RegisterDirectLight(DirectLight);
+		else if (UPointLightComponent* PointLight = Cast<UPointLightComponent>(Component))
+			Scene.RegisterPointLight(PointLight);
+		else if (USpotLightComponent* SpotLight = Cast<USpotLightComponent>(Component))
+			Scene.RegisterSpotLight(SpotLight);
+		else if (UAmbientLightComponent* AmbientLight = Cast<UAmbientLightComponent>(Component))
+			Scene.RegisterAmbientLight(AmbientLight);
 	}
 
 	// 4. Level->Actors에 등록
@@ -749,8 +757,18 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 				Scene.AddPrimitive(Primitive);
 			else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
 				Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+			/*
 			else if (UFireBallComponent* FireBall = Cast<UFireBallComponent>(Component))
 				Scene.RegisterFireBall(FireBall);
+				*/
+			else if (UDirectionalLightComponent* directionallight = Cast<UDirectionalLightComponent>(Component))
+				Scene.RegisterDirectLight(directionallight);
+			else if (UPointLightComponent* pointlight = Cast<UPointLightComponent>(Component))
+				Scene.RegisterPointLight(pointlight);
+			else if (USpotLightComponent* SpotLight = Cast<USpotLightComponent>(Component))
+				Scene.RegisterSpotLight(SpotLight);
+			else if (UAmbientLightComponent* AmbientLight = Cast<UAmbientLightComponent>(Component))
+				Scene.RegisterAmbientLight(AmbientLight);
 		}
 
 		BeginPlayList.Enqueue(Actor);   // Tick 등록은 BeginPlay에서 함

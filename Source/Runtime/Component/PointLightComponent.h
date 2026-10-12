@@ -9,8 +9,6 @@ class UPointLightComponent : public ULightComponent
 	DECLARE_CLASS(UPointLightComponent, ULightComponent)
 
 	REFLECT_START(ClassName)
-		PROPERTY(InnerConeAngle)
-		PROPERTY(OuterConeAngle)
 		PROPERTY(AttenuationRadius)
 		PROPERTY(Falloff)
 		PROPERTY(Intensity)
@@ -19,15 +17,14 @@ class UPointLightComponent : public ULightComponent
 
 public:
 	UPointLightComponent() = default;
-	virtual ~UPointLightComponent() override = default;
+	virtual ~UPointLightComponent() override;
+
+	void InitializeComponent();
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
-	float GetInnerConeAngle() const { return InnerConeAngle; }
-	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }
-
-	float GetOuterConeAngle() const { return OuterConeAngle; }
-	void SetOuterConeAngle(float InAngle) { OuterConeAngle = InAngle; }
+	float GetIntensity() const { return Intensity; }
+	void SetIntensity(float intensity) { Intensity = intensity; }
 
 	float GetFalloff() const { return Falloff; }
 	void SetFalloff(float InFalloff) { Falloff = InFalloff; }
@@ -39,10 +36,6 @@ public:
 	void SetLightColor(const FVector4& InColor) { LightColor = InColor; }
 
 private:
-	// 원뿔 중심축 기준 반각(도). 
-	float InnerConeAngle = 15.0f;
-	float OuterConeAngle = 30.0f;
-
 	// 빛이 닿는 거리
 	float AttenuationRadius = 5.0f;
 

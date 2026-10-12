@@ -4,6 +4,8 @@
 #include "Editor/EditorUI/EditorPanel.h"
 #include "Math/Quat.h"
 #include "Math/Vector.h"
+#include "Render/LightRenderer.h"
+
 class FMultipleViewportsAdapter;
 
 class UWorld;
@@ -41,6 +43,8 @@ struct FEditorSettings
     FQuat ViewRotation[4]{};
     bool bViewLocationSaved[4]{};
     bool bViewRotationSaved[4]{};
+
+	LightingModel SelectedLightingModel = LightingModel::LM_BlinnPhong;
 };
 
 

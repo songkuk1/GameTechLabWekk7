@@ -1,5 +1,7 @@
 #include "EnginePCH.h"
 #include "Component/PointLightComponent.h"
+#include "Asset/AssetManager.h"
+#include "Engine/World.h"
 
 #include "Render/LineBatcher.h"
 
@@ -46,6 +48,17 @@ namespace
 	}
 }
 
+UPointLightComponent::~UPointLightComponent()
+{
+	if (AActor* Owner = GetOwner())
+	{
+		if (UWorld* World = Owner->GetWorld())
+		{
+			World->GetScene().UnregisterPointLight(this);
+		}
+	}
+}
+
 void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 {
 	if (LineBatcher == nullptr)
@@ -74,5 +87,18 @@ void UPointLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 		AddWireCircle(LineBatcher, Apex, u, v, SafeRadius, LightColor);
 
 		FVector4 InnerColor(LightColor.X * 0.5f, LightColor.Y * 0.5f, LightColor.Z * 0.5f, LightColor.W);
+	}
+}
+
+void UPointLightComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (UWorld* World = Owner->GetWorld())
+		{
+			World->GetScene().RegisterPointLight(this);
+		}
 	}
 }

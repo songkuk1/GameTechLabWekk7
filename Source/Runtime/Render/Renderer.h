@@ -8,12 +8,16 @@
 #include "Occlusion/GPUOcclusion.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
-constexpr uint32 MaxFireBalls = 16;
-constexpr uint32 MaxDirectLights = 2;
 
 struct FPerObjectConstants
 {
 	FMatrix World;
+};
+
+struct FViewConstants
+{
+	FMatrix View;
+	FVector4 CameraPos; // xyz : CameraPos, w : padding
 };
 
 struct FSortEntry
@@ -40,30 +44,16 @@ struct FOcclusionMeasureResult
 	uint32 FalseCulls = 0;        // 그중 실제로는 픽셀이 보인 드로우 수. 0이어야 한다
 };
 
-struct alignas(16) FFireBallLight
-{
-	FVector4 PositionRadius; // xyz: 위치, w: 반경
-	FVector4 ColorIntensity; // rgb: 색상, w: 강도
-	FVector4 FalloffEnabled; // x: 반경 감쇠, y: 사용 여부, zw: 패딩
-};
-
-struct alignas(16) FFireBallLightConstants
-{
-	FFireBallLight Light[MaxFireBalls];
-	uint32 LightCount;
-	uint32 Padding[3] = {};
-};
-
 class FRenderer
 {
 public:
 	bool Init();
 
 	// 기존 단일 카메라의 ViewProjection으로 렌더 큐 전체를 그린다.
-	void RenderAll(FRenderQueue& InQueue, UCameraComponent* CameraComponent);
+	void RenderAll(FRenderQueue& InQueue, UCameraComponent* CameraComponent, const FVector& CameraLocation);
 
 	// Adapter가 계산한 ViewProjection을 직접 받아 View별 렌더 큐를 그린다.
-	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraLocation);
 
 	// 큐를 정렬해 불투명 패킷만 그린다. 반투명은 RenderTranslucent 호출 전까지 보관한다.
 	void RenderOpaque(const FMatrix& ViewProjection);
@@ -80,7 +70,7 @@ public:
 	void RenderTranslucent(const FMatrix& ViewProjection);
 
 	// 큐를 Material, Opaque, Mesh에 따라 정렬한다
-	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraPosition);
 
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.
@@ -89,8 +79,6 @@ public:
 
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
-
-	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
 
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
@@ -129,7 +117,4 @@ private:
 
 	TArray<FSortEntry> SortEntries;
 
-	TUniquePtr<FConstantBuffer> FireBallLightCB;
-
-	FFireBallLightConstants FireBallLightData{};
 };

@@ -96,6 +96,27 @@ void FSettingsPanel::OnRender()
 
 	//////////////////////////////////////////////////////////
 
+	const char* ModelNames[] =
+	{
+		"Gouraud",
+		"Lambert",
+		"Blinn-Phong"
+	};
+
+	int SelectedIndex = static_cast<int>(Settings.SelectedLightingModel);
+
+	if (ImGui::Combo(
+		"Lighting Model",
+		&SelectedIndex,
+		ModelNames,
+		IM_ARRAYSIZE(ModelNames)))
+	{
+		Settings.SelectedLightingModel =
+			static_cast<LightingModel>(SelectedIndex);
+	}
+
+	//////////////////////////////////////////////////////////
+
 	ImGui::End();
 }
 

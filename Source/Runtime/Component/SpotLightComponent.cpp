@@ -1,5 +1,7 @@
 #include "EnginePCH.h"
 #include "Component/SpotLightComponent.h"
+#include "Asset/AssetManager.h"
+#include "Engine/World.h"
 
 #include "Render/LineBatcher.h"
 
@@ -103,6 +105,17 @@ namespace
 	}
 }
 
+USpotLightComponent::~USpotLightComponent()
+{
+	if (AActor* Owner = GetOwner())
+	{
+		if (UWorld* World = Owner->GetWorld())
+		{
+			World->GetScene().UnregisterSpotLight(this);
+		}
+	}
+}
+
 void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 {
 	if (LineBatcher == nullptr)
@@ -131,4 +144,17 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 	FVector4 InnerColor(LightColor.X * 0.5f, LightColor.Y * 0.5f, LightColor.Z * 0.5f, LightColor.W);
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
+}
+
+void USpotLightComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (UWorld* World = Owner->GetWorld())
+		{
+			World->GetScene().RegisterSpotLight(this);
+		}
+	}
 }

@@ -2,7 +2,7 @@
 
 #include "LightComponent.h"
 
-//언리얼에서 이런 컴포넌트는 존재하지 않음... 그나마 비슷한 거라면 skyLightComponent 인듯
+//언리얼에서 이런 컴포넌트는 존재하지 않음... 그나마 비슷한 거라면 skyLightComponent 인듯,
 class UAmbientLightComponent final : public ULightComponent
 {
 	DECLARE_CLASS(UAmbientLightComponent, ULightComponent)
@@ -18,12 +18,16 @@ public:
 	UAmbientLightComponent(const UAmbientLightComponent&) = delete;
 	UAmbientLightComponent& operator=(const UAmbientLightComponent& ) = delete;
 
+	void DrawDebug(FLineBatcher*) const override {}
+
+	float GetIntensity() { return Intensity; }
+	void SetIntensity(float intensity) { Intensity = intensity; }
+
+	FVector4 GetColor() { return LightColor; }
+	void SetColor(FVector4 Color) { LightColor = Color; }
+
 private:
 	//빛의 강도
 	float Intensity = 0.2f;
 	FVector4 LightColor = FVector4(1, 1, 1, 1);
-
-
-
-
 };

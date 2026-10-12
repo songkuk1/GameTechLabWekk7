@@ -24,6 +24,9 @@ private:
 	UAmbientLightComponent* AmbientLightComponent = nullptr;
 	UBillboardComponent* BillboardComponent = nullptr;
 
-
+	const FString UnHighLightedAmbientLightIconPath =
+		"Assets/Icons/Component/UnHighLightedAmbientLight.png";
+	const FString HighLightedAmbientLightOnPath =
+		"Assets/Icons/Component/HighLightedAmbientLight.png";
 
 };

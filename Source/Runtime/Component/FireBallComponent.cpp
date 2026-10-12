@@ -10,7 +10,7 @@ void UFireBallComponent::InitializeComponent()
     {
         if (UWorld* World = Owner->GetWorld())
         {
-            World->GetScene().RegisterFireBall(this);
+            World->GetScene().RegisterPointLight(Cast<UPointLightComponent>(this));
         }
     }
 }
@@ -21,7 +21,7 @@ UFireBallComponent::~UFireBallComponent()
     {
         if (UWorld* World = Owner->GetWorld())
         {
-            World->GetScene().UnregisterFireBall(this);
+            World->GetScene().UnregisterPointLight(Cast<UPointLightComponent>(this));
         }
     }
 }

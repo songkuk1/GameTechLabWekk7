@@ -206,13 +206,13 @@ void FScene::MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy)
 }
 
 
-void FScene::UpdateFireBallLight(FRenderer* Renderer)
+void FScene::UpdatePointLight(FLightRenderer* Renderer)
 {
 	if (!Renderer)
 		return;
 
-	FFireBallLight Data{};
-	FFireBallLightConstants Constants{};
+	FPointLight Data{};
+	FPointLightConstants Constants{};
 
 	Constants.LightCount = 0;
 
@@ -221,35 +221,35 @@ void FScene::UpdateFireBallLight(FRenderer* Renderer)
 	Data.ColorIntensity = FVector4(0, 0, 0, 0);
 	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
 
-	for (UFireBallComponent* FireBall : FireBallComponents)
+	for (UPointLightComponent* pointlight : PointLightComponents)
 	{
-		if (Constants.LightCount >= MaxFireBalls)
+		if (Constants.LightCount >= MaxPointLights)
 		{
 			break; // 최대 FireBall 수를 초과하면 루프 종료
 		}
 
-		if (!FireBall)
+		if (!pointlight)
 			continue;
 
-		const FVector Position = FireBall->GetWorldLocation();
-		const FVector4 Color = FireBall->GetLightColor();
+		const FVector Position = pointlight->GetWorldLocation();
+		const FVector4 Color = pointlight->GetLightColor();
 
 		Data.PositionRadius = FVector4(
 			Position.X,
 			Position.Y,
 			Position.Z,
-			std::max<float>(FireBall->GetRadius(), 0.001f)
+			std::max<float>(pointlight->GetAttenuationRadius(), 0.001f)
 		);
 
 		Data.ColorIntensity = FVector4(
 			Color.X,
 			Color.Y,
 			Color.Z,
-			std::max<float>(FireBall->GetIntensity(), 0.0f)
+			std::max<float>(pointlight->GetIntensity(), 0.0f)
 		);
 
 		Data.FalloffEnabled = FVector4(
-			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
+			std::max<float>(pointlight->GetFalloff(), 0.001f),
 			1.0f,
 			0.0f,
 			0.0f
@@ -259,28 +259,28 @@ void FScene::UpdateFireBallLight(FRenderer* Renderer)
 		Constants.LightCount++;
 	}
 
-	Renderer->SetFireBallLight(Constants);
+	Renderer->UpadateConstants(Constants);
 }
 
-void FScene::RegisterFireBall(UFireBallComponent* FireBall)
+void FScene::RegisterPointLight(UPointLightComponent* pointlight)
 {
-	if (!FireBall)
+	if (!pointlight)
 		return;
 
-	for (UFireBallComponent* Existing : FireBallComponents)
+	for (UPointLightComponent* Existing : PointLightComponents)
 	{
-		if (Existing == FireBall)
+		if (Existing == pointlight)
 			return;
 	}
-	FireBallComponents.Add(FireBall);
+	PointLightComponents.Add(pointlight);
 }
-void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
+void FScene::UnregisterPointLight(UPointLightComponent* pointlight)
 {
-	for (uint32 i = 0; i < FireBallComponents.Num(); ++i)
+	for (uint32 i = 0; i < PointLightComponents.Num(); ++i)
 	{
-		if (FireBallComponents[i] == FireBall)
+		if (PointLightComponents[i] == pointlight)
 		{
-			FireBallComponents.RemoveAt(i, 1);
+			PointLightComponents.RemoveAt(i, 1);
 			return;
 		}
 	}
@@ -302,7 +302,7 @@ void FScene::UpdateDirectionalLight(FLightRenderer* Renderer)
 
 	for (UDirectionalLightComponent* DirectLight : DirectionalLightComponents)
 	{
-		if (Constants.LightCount >= MaxDirectLights)
+		if (Constants.LightCount >= MaxDirectionalLights)
 		{
 			break;
 		}
@@ -310,7 +310,7 @@ void FScene::UpdateDirectionalLight(FLightRenderer* Renderer)
 		if (!DirectLight)
 			continue;
 
-		const FRotator Direct = DirectLight->GetWorldRotation().Quaternion().RotateVector(FVector(1.0f,0.0f,0.0f)).Normalized();
+		const FRotator Direct = DirectLight->GetWorldRotation().Quaternion().RotateVector(FVector(0.0f,0.0f,1.0f)).Normalized();
 		const FVector4 Color = DirectLight->GetLightColor();
 
 		Data.Direction = FVector4(
@@ -354,5 +354,134 @@ void FScene::UnregisterDirectLight(UDirectionalLightComponent* DLightComp)
 			DirectionalLightComponents.RemoveAt(i, 1);
 			return;
 		}
+	}
+}
+
+void FScene::UpdateSpotLight(FLightRenderer* Renderer)
+{
+	if (!Renderer)
+		return;
+
+	FSpotLight Data{};
+	FSpotLightConstants Constants{};
+
+	Constants.LightCount = 0;
+	
+	Data.Direction = FVector4(0, 0, 0, 0); // xyz: 방향, w: 패딩
+	Data.PositionRadius = FVector4(0, 0, 0, 0); // xyz: 위치, w: 반경
+	Data.ColorIntensity = FVector4(0, 0, 0, 0); // rgb: 색상, w: 강도
+	Data.FalloffEnabled = FVector4(0, 0, 0, 0); // x: 반경 감쇠, y: 사용 여부, zw: 패딩
+	Data.InnerOuter = FVector4(0, 0, 0, 0); // x: InnerCone 반각, y: OuterCone 반각, zw: 패딩
+
+	for (USpotLightComponent* spotlight : SpotLightComponents)
+	{
+		if (Constants.LightCount >= MaxSpotLights)
+		{
+			break;
+		}
+
+		if (!spotlight)
+			continue;
+
+		const FRotator Direct = spotlight->GetWorldRotation().Quaternion().RotateVector(FVector(1.0f, 0.0f, 0.0f)).Normalized();
+		const FVector4 Color = spotlight->GetLightColor();
+		const FVector4 Position = spotlight->GetWorldLocation();
+
+		Data.Direction = FVector4(
+			Direct.Pitch,
+			Direct.Yaw,
+			Direct.Roll,
+			1.0f
+		);
+
+		Data.PositionRadius = FVector4(
+			Position.X,
+			Position.Y,
+			Position.Z,
+			std::max<float>(spotlight->GetAttenuationRadius(), 0.0f)
+		);
+
+		Data.ColorIntensity = FVector4(
+			Color.X,
+			Color.Y,
+			Color.Z,
+			std::max<float>(spotlight->GetIntensity(), 0.0f)
+		);
+
+		Data.FalloffEnabled = FVector4(
+			std::max<float>(spotlight->GetFalloff(), 0.0f),
+			1.0f,
+			0.0f,
+			0.0f
+		);
+
+		Data.InnerOuter = FVector4(
+			std::max<float>(spotlight->GetInnerConeAngle(), 0.0f),
+			std::max<float>(spotlight->GetOuterConeAngle(), 0.0f),
+			0.0f,
+			0.0f
+		);
+
+		Constants.Light[Constants.LightCount] = Data;
+		Constants.LightCount++;
+	}
+
+	Renderer->UpadateConstants(Constants);
+}
+void FScene::RegisterSpotLight(USpotLightComponent* SLightComp)
+{
+	if (!SLightComp)
+		return;
+
+	for (USpotLightComponent* Existing : SpotLightComponents)
+	{
+		if (Existing == SLightComp)
+			return;
+	}
+	SpotLightComponents.Add(SLightComp);
+}
+void FScene::UnregisterSpotLight(USpotLightComponent* SLightComp)
+{
+	for (uint32 i = 0; i < SpotLightComponents.Num(); ++i)
+	{
+		if (SpotLightComponents[i] == SLightComp)
+		{
+			SpotLightComponents.RemoveAt(i, 1);
+			return;
+		}
+	}
+}
+
+
+void FScene::UpdateAmbientLight(FLightRenderer* Renderer)
+{
+	if (!Renderer || !AmbientLightComponent)
+		return;
+
+	FAmbientLightConstants Constants{};
+
+	FVector4 Color = AmbientLightComponent->GetColor();
+
+	Constants.ColorIntensity = FVector4(
+		Color.X,
+		Color.Y,
+		Color.Z,
+		std::max<float>(0.0f, AmbientLightComponent->GetIntensity())
+	);
+
+	Renderer->UpadateConstants(Constants);
+}
+void FScene::RegisterAmbientLight(UAmbientLightComponent* ALightComp)
+{
+	if (!ALightComp)
+		return;
+
+	AmbientLightComponent = ALightComp;
+}
+void FScene::UnregisterAmbientLight(UAmbientLightComponent* ALightComp)
+{
+	if (AmbientLightComponent)
+	{
+		AmbientLightComponent = nullptr;
 	}
 }
