@@ -9,6 +9,7 @@
 #include "Engine/PrimitiveSceneProxy.h"
 
 #include "RenderCommand.h"
+#include "RenderResourceManager.h"
 
 #include "Camera/CameraComponent.h"
 
@@ -462,10 +463,27 @@ void FRenderer::EndObjectConstants()
 	}
 }
 
+// 공유 Material은 유지하고 현재 View에서 사용할 셰이더만 선택한다.
+void FRenderer::SetViewMode(EViewMode Mode, ELightingModel Model)
+{
+	ViewShaderOverride = Mode == EViewMode::Lit
+		? FRenderResourceManager::GetUberLitShader(Model) : FRenderResourceManager::GetUnlitShader();
+	LastMaterial = nullptr;
+}
+
+void FRenderer::ClearViewMode()
+{
+	ViewShaderOverride = nullptr;
+	LastMaterial = nullptr;
+}
+
 // Material마다 Shader/Texture/Sampler/State 꽂기
 void FRenderer::BindMaterial(UMaterial* material)
 {
-	RenderCommand::BindShaderProgram(material->Shader);
+	FShaderProgram* Shader = material->Shader;
+	if (ViewShaderOverride && FRenderResourceManager::IsUberLitShader(Shader))
+		Shader = ViewShaderOverride;
+	RenderCommand::BindShaderProgram(Shader);
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;

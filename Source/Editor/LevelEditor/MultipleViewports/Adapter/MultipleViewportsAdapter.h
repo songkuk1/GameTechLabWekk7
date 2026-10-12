@@ -6,6 +6,7 @@
 #include "Containers/Queue.h"
 #include "Math/Matrix.h"
 #include "Render/RenderPacket.h"
+#include "Render/RenderEnums.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
 #include "Containers/Map.h"
@@ -73,9 +74,19 @@ public:
     int32 GetEditorViewIndex() const { return Views.Mode == ELayoutMode::Single ? SingleViewIndex : EditorViewIndex; }
     // 속성 창에서 선택한 View를 공통 편집 대상으로 지정한다.
     void SetEditorViewIndex(int32 Index) { if (Index >= 0 && Index < 4) EditorViewIndex = Index; }
-    // View별 장면 래스터라이저 모드를 저장하고 조회한다.
-    void SetViewWireframe(int32 Index, bool Value) { if (Index >= 0 && Index < MaxViewCount) ViewWireframe[Index] = Value; }
-    bool IsViewWireframe(int32 Index) const { return Index >= 0 && Index < MaxViewCount && ViewWireframe[Index]; }
+    // ViewMode와 Lighting Model은 View별로 보관한다. 미구현 모드는 Lit으로 복원한다.
+    void SetViewMode(int32 Index, EViewMode Mode)
+    {
+        if (Index >= 0 && Index < MaxViewCount)
+            ViewSettings[Index].Mode = Mode >= EViewMode::Lit && Mode <= EViewMode::DepthView ? Mode : EViewMode::Lit;
+    }
+    EViewMode GetViewMode(int32 Index) const { return Index >= 0 && Index < MaxViewCount ? ViewSettings[Index].Mode : EViewMode::Lit; }
+    void SetLightingModel(int32 Index, ELightingModel Model)
+    {
+        if (Index >= 0 && Index < MaxViewCount)
+            ViewSettings[Index].LightingModel = Model >= ELightingModel::Gouraud && Model <= ELightingModel::BlinnPhong ? Model : ELightingModel::BlinnPhong;
+    }
+    ELightingModel GetLightingModel(int32 Index) const { return Index >= 0 && Index < MaxViewCount ? ViewSettings[Index].LightingModel : ELightingModel::BlinnPhong; }
     // 현재 마우스가 올라간 View 인덱스를 반환한다.
     int32 GetHoveredViewIndex() const { return InputState.HoveredViewIndex; }
     // 우클릭 입력을 Capture 중인 View 인덱스를 반환한다.
@@ -145,7 +156,7 @@ private:
     int32 SingleViewIndex = 0;
     int32 ActiveViewIndex = InvalidViewIndex;
     int32 EditorViewIndex = 0;
-    bool ViewWireframe[MaxViewCount]{};
+    FViewModeSettings ViewSettings[MaxViewCount]{};
     FViewCamera CameraOverrides[MaxViewCount]{};
     bool bHasCameraOverride[MaxViewCount]{};
     FPickHit LastPick{};

@@ -1,5 +1,16 @@
 #include "UberLit.hlsli"
 
+#ifndef LIGHTING_MODEL_GOURAUD
+#define LIGHTING_MODEL_GOURAUD 0
+#endif
+#ifndef LIGHTING_MODEL_LAMBERT
+#define LIGHTING_MODEL_LAMBERT 0
+#endif
+#ifndef LIGHTING_MODEL_PHONG
+#define LIGHTING_MODEL_PHONG 0
+#endif
+
+#define HAS_NORMAL_MAP 1
 #pragma pack_matrix(row_major)
 cbuffer PerFrame : register(b0)
 {
@@ -40,6 +51,10 @@ cbuffer Lighting : register(b4)
 
 Texture2D InputTexture : register(t0);
 SamplerState LinearClamp : register(s0);
+
+#if HAS_NORMAL_MAP
+Texture2D NormalMap  : register(t1);
+#endif
 
 PS_INPUT mainVS(VS_INPUT Input)
 {

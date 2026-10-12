@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Shader.h"
+#include "RenderEnums.h"
 
 class FRenderResourceManager
 {
@@ -22,10 +23,16 @@ public:
 	static void Shutdown();
 
 	static FShaderProgram* GetShaderProgram(const FString& InPath);
+	static FShaderProgram* GetUberLitShader(ELightingModel Model);
+	static FShaderProgram* GetUnlitShader() { return Get().UnlitShader; }
+	static bool IsUberLitShader(const FShaderProgram* Shader);
 private:
-	void LoadOrCompileShader(const FString& Path, const D3D_SHADER_MACRO* Defines=nullptr , const FString& Variant = "");
+	FShaderProgram* LoadOrCompileShader(const FString& Path, const D3D_SHADER_MACRO* Defines=nullptr , const FString& Variant = "");
 	void LoadUberLitVariants();
+	FShaderProgram* DefaultUberLitShader = nullptr;
+	FShaderProgram* UberLitShaders[3]{};
+	FShaderProgram* UnlitShader = nullptr;
 	TMap<FString, TUniquePtr<FVertexShader>> VertexShaderMap;
 	TMap<FString, TUniquePtr<FPixelShader>>  PixelShaderMap;
 	TMap<FString, TUniquePtr<FShaderProgram>> ShaderProgramMap;
-}; 
+};

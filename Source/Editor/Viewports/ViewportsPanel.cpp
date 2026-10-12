@@ -18,6 +18,8 @@ constexpr ImU32 SplitterColor = IM_COL32(55, 55, 55, 230);
 constexpr ImU32 SplitterHoverColor = IM_COL32(255, 192, 0, 255);
 constexpr const char* CameraPresetLabels[] = {
 	"Perspective", "Ortho (Current)", "Top", "Bottom", "Front", "Back", "Left", "Right"};
+constexpr const char* ViewModeLabels[] = { "Lit", "Unlit", "Wireframe", "DepthView", "WorldNormal" };
+constexpr const char* LightingModelLabels[] = { "Gouraud", "Lambert", "Blinn-Phong" };
 
 // Stat Overlay
 constexpr float StatOverlayMargin = 8.0f;
@@ -243,14 +245,42 @@ void FViewportsPanel::OnRender()
 			PendingCameraPreset = static_cast<EMultipleViewportsCameraPreset>(SelectedPreset);
 		}
 		ImGui::SameLine();
-		// 레이아웃과 독립적으로 각 View의 장면 Fill Mode를 편집한다.
+		// 레이아웃과 독립적으로 각 View의 ViewMode와 Lighting Model을 편집한다.
         if (ViewportAdapter)
         {
-            int Mode = ViewportAdapter->IsViewWireframe(ViewIndex) ? 1 : 0;
-            const char* Labels[] = {"Solid", "Wireframe"};
-            ImGui::SetNextItemWidth(100.0f);
-            if (ImGui::Combo("##FillMode", &Mode, Labels, 2))
-                ViewportAdapter->SetViewWireframe(ViewIndex, Mode == 1);
+            const EViewMode Mode = ViewportAdapter->GetViewMode(ViewIndex);
+            ImGui::SetNextItemWidth(140.0f);
+            if (ImGui::BeginCombo("##ViewMode", ViewModeLabels[static_cast<int32>(Mode)]))
+            {
+                for (int32 Index = 0; Index <= static_cast<int32>(EViewMode::Wireframe); ++Index)
+                {
+                    const EViewMode ItemMode = static_cast<EViewMode>(Index);
+                    if (ImGui::MenuItem(ViewModeLabels[Index], nullptr, Mode == ItemMode))
+                        ViewportAdapter->SetViewMode(ViewIndex, ItemMode);
+                }
+                ImGui::Separator();
+                if (ImGui::BeginMenu("BufferVisualization"))
+                {
+                    if (ImGui::MenuItem("DepthView", nullptr, Mode == EViewMode::DepthView))
+                        ViewportAdapter->SetViewMode(ViewIndex, EViewMode::DepthView);
+                    ImGui::MenuItem("WorldNormal", nullptr, false, false);
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                        ImGui::SetTooltip("Not implemented yet.");
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("Lighting Model", Mode == EViewMode::Lit))
+                {
+                    const ELightingModel Model = ViewportAdapter->GetLightingModel(ViewIndex);
+                    for (int32 Index = 0; Index <= static_cast<int32>(ELightingModel::BlinnPhong); ++Index)
+                    {
+                        const ELightingModel ItemModel = static_cast<ELightingModel>(Index);
+                        if (ImGui::MenuItem(LightingModelLabels[Index], nullptr, Model == ItemModel))
+                            ViewportAdapter->SetLightingModel(ViewIndex, ItemModel);
+                    }
+                    ImGui::EndMenu();
+                }
+                ImGui::EndCombo();
+            }
             ImGui::SameLine();
         }
         if (CurrentLayoutMode == ELayoutMode::QuadSplit)

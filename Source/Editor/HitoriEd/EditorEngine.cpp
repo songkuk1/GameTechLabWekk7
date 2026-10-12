@@ -557,12 +557,14 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 	RenderCommand::BeginRenderPass(ViewRenderingInfo);
 
 	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
-	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
-	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
+	// ViewMode에서 장면 래스터라이저와 조명 셰이더를 함께 선택한다.
+	const EViewMode ViewMode = MultipleViewportsAdapter.GetViewMode(ViewIndex);
+	const ERasterizerState SceneRasterizerState = ViewMode == EViewMode::Wireframe
 		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
 
 	// 렌더 루프 — 반드시 RenderAll보다 먼저
 	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
+	Renderer->SetViewMode(ViewMode, MultipleViewportsAdapter.GetLightingModel(ViewIndex));
 	if (bDrawPrimitives)
 	{
 		RenderCommand::SetRasterizerState(SceneRasterizerState);
@@ -587,8 +589,7 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		Renderer->RenderTranslucent(ViewProjection);
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 	}
-
-
+	Renderer->ClearViewMode();
 
 	RenderCommand::EndRenderPass(ViewRenderingInfo);
 }
@@ -633,7 +634,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	if (bShowEditorOverlay && SettingsPanel->GetSettings().bDrawBatchLine && !SettingsPanel->GetSettings().bDepthView)
+	if (bShowEditorOverlay && SettingsPanel->GetSettings().bDrawBatchLine && MultipleViewportsAdapter.GetViewMode(ViewIndex) != EViewMode::DepthView)
 	{
 		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
 		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
@@ -888,14 +889,15 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	// 1. 불투명 Pass
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
-	if (SettingsPanel->GetSettings().bDepthView)
+	const EViewMode ViewMode = MultipleViewportsAdapter.GetViewMode(ViewIndex);
+	if (ViewMode == EViewMode::DepthView)
 	{
 		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
 	}
 	else
 	{
-		//직교인 경우 안개 Pass를 그리지 않는다.
-		if (!MultipleViewportsAdapter.IsOrthographic(ViewIndex) && SettingsPanel->GetSettings().bExponentialHeightFog)
+		// Lit의 원근 View에서만 안개 Pass를 그린다.
+		if (ViewMode == EViewMode::Lit && !MultipleViewportsAdapter.IsOrthographic(ViewIndex) && SettingsPanel->GetSettings().bExponentialHeightFog)
 			// 2. 안개 Pass
 			RenderFogPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
 

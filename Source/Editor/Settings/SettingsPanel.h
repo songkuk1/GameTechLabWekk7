@@ -4,6 +4,7 @@
 #include "Editor/EditorUI/EditorPanel.h"
 #include "Math/Quat.h"
 #include "Math/Vector.h"
+#include "Render/RenderEnums.h"
 class FMultipleViewportsAdapter;
 
 class UWorld;
@@ -12,14 +13,12 @@ struct FEditorSettings
 {
 	// 에디터 렌더 옵션과 Multiple Viewports 레이아웃의 영구 설정을 한곳에 담는다.
 	// Toggles
-	bool bWireframe = false;
 	bool bDrawPrimitives = true;
 	bool bDrawBoundingBox = false;
 	bool bShowUUID = false;
 	bool bDrawBatchLine = true;
 	bool bDrawPSGrid = false;
 	bool bEnableFXAA = true;
-	bool bDepthView = false;
 	bool bExponentialHeightFog = true;
 
 	// Values
@@ -34,7 +33,7 @@ struct FEditorSettings
     float ViewFov[4]{};
     float ViewOrthoWidth[4]{};
     int32 ViewPreset[4]{-1,-1,-1,-1};
-    int32 ViewWireframe[4]{-1,-1,-1,-1};
+    FViewModeSettings ViewSettings[4]{};
     // View별 카메라 Transform은 Quaternion 그대로 저장해 재실행 후 같은 시점을 복원한다.
     // 구형 editor.ini에 키가 없으면 Saved가 false로 남아 Adapter의 초기 Transform을 유지한다.
     FVector ViewLocation[4]{};

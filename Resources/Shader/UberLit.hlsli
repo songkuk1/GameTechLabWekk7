@@ -83,17 +83,19 @@ float3 CalculateAmbientLight(FAmbientLightInfo Light)
     return Light.Intensity * Light.Color;
     
 }
-FLightContribution CalculateDirectionalLight(FDirectionalLightInfo Light, float3 N, float3 V,float Shiniess)
+FLightContribution CalculateDirectionalLight(FDirectionalLightInfo Light, float3 N, float3 V, float Shiniess)
 {
     FLightContribution output;
-    float3 lightAmount;
+    float dotLN = saturate(dot(Light.Direction, N));
+    float3 lightAmount = Light.Intensity * Light.Color * dotLN;
+    
     //Diffuse
-    lightAmount = Light.Intensity * Light.Color;
-    output.Diffuse = lightAmount * saturate(dot(Light.Direction, N));
+    output.Diffuse = lightAmount;
+    
     //Specular
     float3 H = (V + Light.Direction) / max(length(V + Light.Direction), 0.00001f);
     float alpha = max(dot(H, N), 0);
-    output.Specular = lightAmount * pow(alpha, Shiniess);
+    output.Specular = lightAmount * pow(alpha, max(Shiniess, 1));
     
     return output;
 }
@@ -102,20 +104,20 @@ FLightContribution CalculatePointLight(FPointLightInfo Light, float3 WorldPos, f
 {
     FLightContribution output;
     float3 L = Light.Position - WorldPos;
-    float distance= length(L);
-    L /= distance;
-    float3 lightAmount = Light.Intensity * Light.Color * 
+    float distance = length(L);
+    L /= max(distance, 0.00001f);
+    
+    float dotLN = saturate(dot(L, N));
+    float3 lightAmount = Light.Intensity * Light.Color * dotLN *
                          pow(saturate(1 - distance / Light.AttenuationRadius), Light.FalloffExponent);
 
-    //Diffuse 계산
-    
-    output.Diffuse = lightAmount * saturate(dot(L, N));
+    //Diffuse
+    output.Diffuse = lightAmount;
     
     //Specular
-    
-    float3 H = (L + V) / length(L + V);
+    float3 H = (L + V) / max(length(L + V), 0.00001f);
     float alpha = max(dot(H, N), 0);
-    output.Specular = lightAmount * pow(alpha, Shiniess);
+    output.Specular = lightAmount * pow(alpha, max(Shiniess, 1));
     return output;
     
     
@@ -125,20 +127,21 @@ FLightContribution CalculateSpotLight(FSpotLightInfo Light, float3 WorldPos, flo
     FLightContribution output;
     float3 L = Light.Position - WorldPos;
     float distance = length(L);
-    L /= distance;
-    float3 lightAmount = Light.Intensity * Light.Color * saturate(dot(L, N)) *
-                  pow(saturate(1 - distance / Light.AttenuationRadius), Light.FalloffExponent);
+    L /= max(distance, 0.00001f);
+    float cosW = dot(L, Light.Direction);
+    float dotLN = saturate(dot(L, N));
+    float3 lightAmount = Light.Intensity * Light.Color * dotLN *
+                  pow(saturate(1 - distance / Light.AttenuationRadius), Light.FalloffExponent) *
+                  saturate((cosW - Light.OuterCos) / max(Light.InnerCos - Light.OuterCos, 0.00001f));
 
     
     //Diffuse 계산
-    float cosW = dot(L, Light.Direction);
-    output.Diffuse = lightAmount * saturate((cosW - Light.OuterCos) / max(Light.InnerCos - Light.OuterCos, 0.00001f));
+    output.Diffuse = lightAmount;
     
     //Specular 계산
-    
-    float3 H = (L + V) / length(L + V);
+    float3 H = (L + V) / max(length(V + Light.Direction), 0.00001f);
     float alpha = max(dot(H, N), 0);
-    output.Specular = lightAmount * pow(alpha, Shiniess);
+    output.Specular = lightAmount * pow(alpha, max(Shiniess, 1));
 
     return output;
     

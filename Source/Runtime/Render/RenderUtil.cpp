@@ -1,6 +1,41 @@
 #include "EnginePCH.h"
 #include "RenderUtil.h"
 
+#include <set>
+#include <sstream>
+
+namespace
+{
+	// include된 파일도 확인해 hlsli 변경 후 오래된 변형 셰이더를 읽지 않게 한다.
+	bool AreShaderSourcesOlder(const fs::path& Path, fs::file_time_type CsoTime, std::set<fs::path>& Visited)
+	{
+		const fs::path Source = Path.lexically_normal();
+		if (!Visited.insert(Source).second) return true;
+
+		std::error_code Ec;
+		const auto SourceTime = fs::last_write_time(Source, Ec);
+		if (Ec || SourceTime >= CsoTime) return false;
+
+		std::ifstream File(Source);
+		if (!File) return false;
+		std::string Line;
+		while (std::getline(File, Line))
+		{
+			std::istringstream Tokens(Line);
+			char Hash;
+			std::string Directive;
+			if (!(Tokens >> Hash) || Hash != '#' || !(Tokens >> Directive) || Directive != "include") continue;
+
+			char Delimiter;
+			if (!(Tokens >> Delimiter) || (Delimiter != '"' && Delimiter != '<')) return false;
+			std::string IncludePath;
+			if (!std::getline(Tokens, IncludePath, Delimiter == '"' ? '"' : '>')) return false;
+			if (!AreShaderSourcesOlder(Source.parent_path() / IncludePath, CsoTime, Visited)) return false;
+		}
+		return !File.bad();
+	}
+}
+
 FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType, const D3D_SHADER_MACRO* Defines)
 {
 	const char* Target = (ShaderType == EShaderType::Vertex) ? "vs_5_0" : "ps_5_0";
@@ -73,12 +108,11 @@ bool RenderUtil::IsCsoUpToDate(const FString& ShaderPath, const FString& CsoPath
 	std::error_code Ec;  
 	if (!fs::exists(CsoPath, Ec)) return false;
 
-	const auto SrcTime = fs::last_write_time(ShaderPath, Ec);
-	if (Ec) return false;
 	const auto CsoTime = fs::last_write_time(CsoPath, Ec);
 	if (Ec) return false;
 
-	return CsoTime > SrcTime;
+	std::set<fs::path> Visited;
+	return AreShaderSourcesOlder(ShaderPath, CsoTime, Visited);
 }
 
 FShaderByteCode RenderUtil::GetOrCompile(const FString& ShaderPath, const char* EntryPoint, EShaderType ShaderType, FString& OutCSOPath, const D3D_SHADER_MACRO* Defines, const FString& Variant)
