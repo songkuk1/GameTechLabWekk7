@@ -27,6 +27,18 @@ cbuffer WorldConstants : register(b2)
     matrix World;
 };
 
+
+cbuffer MaterialParams : register(b1)
+{
+    float4 BaseColor;
+    float2 UVOffset;
+    float bOpaque;     
+    float _materialPad;
+};
+
+Texture2D g_txColor : register(t0);
+SamplerState g_Sample : register(s0);
+
 struct AmbientLightInfo
 {
     float4 ColorIntensity;
@@ -181,9 +193,10 @@ PSInput mainVS(VSInput Input)
     Out.UV = Input.UV;
 
 #if LIGHTING_MODEL_GOURAUD
+    // 정점에서는 라이팅만 계산해 넘기고, 텍스처 색은 PS에서 곱한다 (Gouraud는 Specular가 없다)
     float3 V = normalize(CameraPosition - WorldPos.xyz);
     FLightResult Light = CalcAllLights(WorldPos.xyz, WorldN, V);
-    Out.Color    = float4(Light.Diffuse * Input.Color.rgb + Light.Specular, Input.Color.a);
+    Out.Color    = float4(Light.Diffuse, 1.0f);
 #else
     Out.Color = Input.Color; // Lambert/Phong은 PS에서 계산
 #endif
@@ -192,17 +205,23 @@ PSInput mainVS(VSInput Input)
 
 float4 mainPS(PSInput Input) : SV_Target
 {
-    float4 finalPixel = Input.Color;
-    
+    // 표면색 = 텍스처 * BaseColor (StaticMeshShader와 같다)
+    float4 Albedo = g_txColor.Sample(g_Sample, Input.UV + UVOffset) * BaseColor;
+    float3 FinalRGB = Albedo.rgb;
+
 #if LIGHTING_MODEL_GOURAUD
+    // VS가 보간해 준 라이팅
+    FinalRGB = Albedo.rgb * Input.Color.rgb;
 #elif LIGHTING_MODEL_LAMBERT || LIGHTING_MODEL_PHONG
-   
     float3 N = normalize(Input.Normal);
     float3 V = normalize(CameraPosition - Input.worldPos);
     FLightResult Light = CalcAllLights(Input.worldPos, N, V);   // Lambert면 Specular는 0
-    finalPixel = float4(Light.Diffuse * Input.Color.rgb + Light.Specular, Input.Color.a);
+    // 스페큘러는 표면색을 곱하지 않는다
+    FinalRGB = Albedo.rgb * Light.Diffuse + Light.Specular;
 #endif
-    
-    return finalPixel;
+
+    // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
+    float Alpha = bOpaque > 0.5f ? 1.0f : Albedo.a;
+    return float4(FinalRGB, Alpha);
 
 }
