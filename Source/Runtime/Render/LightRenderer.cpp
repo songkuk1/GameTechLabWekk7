@@ -2,7 +2,7 @@
 #include "LightRenderer.h"
 #include "RenderCommand.h"
 #include "RenderResourceManager.h"
-
+/*
 bool FLightRenderer::Init()
 {
 
@@ -40,3 +40,4 @@ void FLightRenderer::OnRender(FTexture2D* depthTexture, const FMatrix& ViewProje
 	RenderCommand::BindConstantBuffer(0, ConstantBuffer.get(), EShaderBindFlagBits::Pixel);
 	RenderCommand::Draw(3);
 }
+*/

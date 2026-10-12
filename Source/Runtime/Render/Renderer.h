@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "RenderPacket.h"
 #include "Texture2D.h"
 #include "Text/Font.h"
@@ -15,6 +17,16 @@ struct FPerObjectConstants
 {
 	FMatrix World;
 };
+
+struct FViewConstants
+{
+	FMatrix ViewProjection;
+	FVector CameraPosition;
+	float Padding = 0;
+};
+
+static_assert(sizeof(FViewConstants) == 80);
+static_assert(offsetof(FViewConstants, CameraPosition) == 64);
 
 struct FSortEntry
 {
@@ -54,19 +66,53 @@ struct alignas(16) FFireBallLightConstants
 	uint32 Padding[3] = {};
 };
 
-struct alignas(16) FDirectionalLight
+struct alignas(16) FAmbientLightConstants
 {
-	FVector4 Direction; // xyz: 방향, w: 패딩
-	FVector4 ColorIntensity; // rgb: 색상, w: 강도
-	FVector4 EXP; // x: ?, y: ?, z :, w: ? (추후 추가 입력값 대비)
+	FVector Color = {};
+	float Intensity;
+};
+struct FDirectionalLightConstants
+{
+	FVector Color = {};
+	float Intensity;
+	FVector Direction;
+	float Padding;
+	//FVector4 Direction; // xyz: 방향, w: 패딩
+	//FVector4 ColorIntensity; // rgb: 색상, w: 강도
+	//FVector4 EXP; // x: ?, y: ?, z :, w: ? (추후 추가 입력값 대비)
+};
+struct FPointLightConstants
+{
+	FVector Position;
+	float AttenuationRadius;
+	FVector Color;
+	float Intensity;
+	float FalloffExponent;
+	float Padding[3];
+};
+struct FSpotLightConstants
+{
+	FVector Position;
+	float AttenuationRadius;
+	FVector Color;
+	float Intensity;
+	FVector Direction;
+	float FalloffExponent;
+	float InnerCos;
+	float OuterCos;
+	float Padding[2];
+};
+struct FLightConstants 
+{
+	FAmbientLightConstants AmbientLightConstants;
+	FDirectionalLightConstants DirectionalLightConstants;
+	FPointLightConstants PointLights[4];
+	FSpotLightConstants SpoitLights[4];
+	int NumPointLights = 0;
+	int NumSpotLights = 0;
+	float Padding[2] = {};
 };
 
-struct alignas(16) FDirectionalLightConstants
-{
-	FDirectionalLight Light[MaxDirectLights];
-	uint32 LightCount;
-	uint32 Padding[3] = {};
-};
 
 class FRenderer
 {
@@ -76,8 +122,8 @@ public:
 	// 기존 단일 카메라의 ViewProjection으로 렌더 큐 전체를 그린다.
 	void RenderAll(FRenderQueue& InQueue, UCameraComponent* CameraComponent);
 
-	// Adapter가 계산한 ViewProjection을 직접 받아 View별 렌더 큐를 그린다.
-	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	// Adapter가 계산한 ViewProjection과 카메라 위치를 직접 받아 View별 렌더 큐를 그린다.
+	void RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraPosition);
 
 	// 큐를 정렬해 불투명 패킷만 그린다. 반투명은 RenderTranslucent 호출 전까지 보관한다.
 	void RenderOpaque(const FMatrix& ViewProjection);
@@ -94,7 +140,7 @@ public:
 	void RenderTranslucent(const FMatrix& ViewProjection);
 
 	// 큐를 Material, Opaque, Mesh에 따라 정렬한다
-	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection, const FVector& CameraPosition);
 
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.
@@ -106,6 +152,7 @@ public:
 
 	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
 	void SetDirectionalLight(const FDirectionalLightConstants& LightData);
+	void SetLight(const FLightConstants& LightData);
 
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
@@ -146,7 +193,10 @@ private:
 
 	TUniquePtr<FConstantBuffer> FireBallLightCB;
 	TUniquePtr<FConstantBuffer> DirectionalLightCB;
+	TUniquePtr<FConstantBuffer> LightCB;
+
 
 	FFireBallLightConstants FireBallLightData{};
 	FDirectionalLightConstants DirectionalLightData{};
+	FLightConstants LightData{};
 };

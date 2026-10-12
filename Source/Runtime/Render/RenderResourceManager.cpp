@@ -48,16 +48,17 @@ FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath)
 	return nullptr;
 }
 
-void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
+void FRenderResourceManager::LoadOrCompileShader(const FString& Path, const D3D_SHADER_MACRO* Defines, const FString& Variant)
 { 
+	const FString Key = Variant.empty() ? Path : Path + "#" + Variant;
 	FString VSCSOPath;
 	FString PSCSOPath;
-	FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath);
-	FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel, PSCSOPath);
+	FShaderByteCode VSCode = RenderUtil::GetOrCompile(Path, "mainVS", EShaderType::Vertex, VSCSOPath,Defines,Variant);
+	FShaderByteCode PSCode = RenderUtil::GetOrCompile(Path, "mainPS", EShaderType::Pixel, PSCSOPath,Defines,Variant);
 
 	if (!VSCode.IsValid() || !PSCode.IsValid())
 	{
-		HTR_LOG(Error, "[Shader] compile failed: {}", Path);
+		HTR_LOG(Error, "[Shader] compile failed: {}", Key);
 		return;
 	}
 
@@ -66,7 +67,7 @@ void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
 
 	if (!Vs || !Vs->IsValid() || !Ps || !Ps->IsValid())
 	{
-		HTR_LOG(Error, "[Shader] device create failed: {}", Path);
+		HTR_LOG(Error, "[Shader] device create failed: {}", Key);
 		return;
 	}
 
@@ -75,8 +76,23 @@ void FRenderResourceManager::LoadOrCompileShader(const FString& Path)
 
 	VertexShaderMap[VSCSOPath] = std::move(Vs);
 	PixelShaderMap[PSCSOPath] = std::move(Ps);
-	ShaderProgramMap[Path] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
+	ShaderProgramMap[Key] = MakeUnique<FShaderProgram>(VsRaw, PsRaw);
+	
 
-	HTR_LOG(Info, "[Shader] loaded: {}", Path);
+	HTR_LOG(Info, "[Shader] loaded: {}", Key);
+
+}
+void FRenderResourceManager::LoadUberLitVariants() 
+{
+	const FString Path = "Resources/Shader/UberLit.hlsl";
+	
+	const D3D_SHADER_MACRO GouraudDefines[] = { { "LIGHTING_MODEL_GOURAUD", "1" },{ nullptr, nullptr } };
+	const D3D_SHADER_MACRO LambertDefines[] = { { "LIGHTING_MODEL_LAMBERT", "1" },{ nullptr, nullptr } };
+	const D3D_SHADER_MACRO blinnPhongDefines[] = { { "LIGHTING_MODEL_PHONG", "1" },{ nullptr, nullptr } };
+
+	LoadOrCompileShader(Path, GouraudDefines, "GOURAUD");
+	LoadOrCompileShader(Path, LambertDefines, "LAMBERT");
+	LoadOrCompileShader(Path, blinnPhongDefines, "PHONG");
+
 
 }

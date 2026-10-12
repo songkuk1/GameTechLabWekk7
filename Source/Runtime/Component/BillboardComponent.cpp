@@ -75,11 +75,11 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	Packet.Material = Material;
 	Packet.Model = RenderQueue.StoreWorldMatrix(BillboardWorldMatrix);
 
-	/*
+	
 	static const FSubUVConstants IconParams {0.0f, 1.0f, 1.0f, 1.0f};
 	Packet.MaterialParamData = &IconParams;
 	Packet.MaterialParamDataSize = sizeof(IconParams);
-	*/
+	
 
 	RenderQueue.Add(Packet);
 }

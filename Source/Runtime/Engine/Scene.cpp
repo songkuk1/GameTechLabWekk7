@@ -288,50 +288,50 @@ void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
 
 void FScene::UpdateDirectionalLight(FRenderer* Renderer)
 {
-	if (!Renderer)
-		return;
+	//if (!Renderer)
+	//	return;
 
-	FDirectionalLight Data{};
-	FDirectionalLightConstants Constants{};
+	//FDirectionalLight Data{};
+	//FDirectionalLightConstants Constants{};
 
-	Constants.LightCount = 0;
+	//Constants.LightCount = 0;
 
-	Data.Direction = FVector4(0, 0, 0, 0);
-	Data.ColorIntensity = FVector4(0, 0, 0, 0);
-	Data.EXP = FVector4(1, 0, 0, 0);
+	//Data.Direction = FVector4(0, 0, 0, 0);
+	//Data.ColorIntensity = FVector4(0, 0, 0, 0);
+	//Data.EXP = FVector4(1, 0, 0, 0);
 
-	for (UDirectionalLightComponent* DirectLight : DirectionalLightComponents)
-	{
-		if (Constants.LightCount >= MaxDirectLights)
-		{
-			break;
-		}
+	//for (UDirectionalLightComponent* DirectLight : DirectionalLightComponents)
+	//{
+	//	if (Constants.LightCount >= MaxDirectLights)
+	//	{
+	//		break;
+	//	}
 
-		if (!DirectLight)
-			continue;
+	//	if (!DirectLight)
+	//		continue;
 
-		const FRotator Direct = DirectLight->GetWorldRotation().Quaternion().RotateVector(FVector(1.0f,0.0f,0.0f)).Normalized();
-		const FVector4 Color = DirectLight->GetLightColor();
+	//	const FRotator Direct = DirectLight->GetWorldRotation().Quaternion().RotateVector(FVector(1.0f,0.0f,0.0f)).Normalized();
+	//	const FVector4 Color = DirectLight->GetLightColor();
 
-		Data.Direction = FVector4(
-			Direct.Pitch,
-			Direct.Yaw,
-			Direct.Roll,
-			1.0f
-		);
+	//	Data.Direction = FVector4(
+	//		Direct.Pitch,
+	//		Direct.Yaw,
+	//		Direct.Roll,
+	//		1.0f
+	//	);
 
-		Data.ColorIntensity = FVector4(
-			Color.X,
-			Color.Y,
-			Color.Z,
-			std::max<float>(DirectLight->GetIntensity(), 0.0f)
-		);
+	//	Data.ColorIntensity = FVector4(
+	//		Color.X,
+	//		Color.Y,
+	//		Color.Z,
+	//		std::max<float>(DirectLight->GetIntensity(), 0.0f)
+	//	);
 
-		Constants.Light[Constants.LightCount] = Data;
-		Constants.LightCount++;
-	}
+	//	Constants.Light[Constants.LightCount] = Data;
+	//	Constants.LightCount++;
+	//}
 
-	Renderer->SetDirectionalLight(Constants);
+	//Renderer->SetDirectionalLight(Constants);
 }
 void FScene::RegisterDirectLight(UDirectionalLightComponent* DLightComp)
 {

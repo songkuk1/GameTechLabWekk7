@@ -24,6 +24,7 @@ public:
 	virtual ~USpotLightComponent() override = default;
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
+	float GetIntensity() const { return Intensity; }
 
 	float GetInnerConeAngle() const { return InnerConeAngle; }
 	void SetInnerConeAngle(float InAngle) { InnerConeAngle = InAngle; }

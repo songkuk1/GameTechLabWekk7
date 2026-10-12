@@ -5,13 +5,14 @@
 #include "Core/EngineString.h"
 #include "Render/Renderer.h"
 
+/*
 struct FLightConstants
 {
 	FMatrix InverseViewProjection;
 	FVector CameraPosition;
 	float Padding = 0.0f;
 };
-
+*/
 
 class FLightRenderer
 {

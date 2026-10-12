@@ -20,6 +20,8 @@ struct FStaticMeshMaterialParams
 	FVector4 BaseColor;
 	FVector2 UVOffset;
 	float bOpaque; // 1이면 PS가 알파를 1로 출력한다
+	float Shininess;
+	FVector SpecularColor;
 	float Padding;
 };
 
@@ -41,6 +43,8 @@ public:
 
 	FVector4 BaseColor = FVector4(1, 1, 1, 1);
 	FVector2 UVScrollSpeed = FVector2(0.0f, 0.0f);
+	float Shininess = 32.0f;
+	FVector SpecularColor = FVector(0.5f, 0.5f, 0.5f);
 
 	bool bIsInstance = false;
 

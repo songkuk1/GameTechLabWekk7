@@ -14,6 +14,12 @@
 #include "Collision/Ray.h"
 #include "Component/BillboardComponent.h"
 #include "Component/ExponentialHeightFogComponent.h"
+#include "Component/AmbientLightComponent.h"
+#include "Component/DirectionalLightComponent.h"
+#include "Component/PointLightComponent.h"
+#include "Component/SpotLightComponent.h"
+
+#include <iterator>
 
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
@@ -163,6 +169,76 @@ void UWorld::ClearWorld()
 		Level->ClearActors();
 	}
 	HTR_LOG(Info, "{} : ", PersistentLevel->GetActorNum());
+}
+
+void UWorld::UpdateLightConstants(FRenderer* Renderer)
+{
+	if (!Renderer) return;
+
+	FLightConstants Constants{};
+	bool bHasAmbient = false;
+	bool bHasDirectional = false;
+
+	for (ULevel* Level : Levels)
+	{
+		if (!Level) continue;
+		for (AActor* Actor : Level->GetActors())
+		{
+			if (!Actor) continue;
+			for (UActorComponent* Component : Actor->GetComponents())
+			{
+				if (!Component) continue;
+				if (UAmbientLightComponent* Light = Cast<UAmbientLightComponent>(Component))
+				{
+					if (bHasAmbient) continue;
+					const FVector4& Color = Light->GetLightColor();
+					Constants.AmbientLightConstants.Color = FVector(Color.X, Color.Y, Color.Z);
+					Constants.AmbientLightConstants.Intensity = FMath::Max(Light->GetIntensity(), 0.0f);
+					bHasAmbient = true;
+				}
+				else if (UDirectionalLightComponent* Light = Cast<UDirectionalLightComponent>(Component))
+				{
+					if (bHasDirectional) continue;
+					const FVector4 Color = Light->GetLightColor();
+					auto& Data = Constants.DirectionalLightConstants;
+					Data.Color = FVector(Color.X, Color.Y, Color.Z);
+					Data.Intensity = FMath::Max(Light->GetIntensity(), 0.0f);
+					Data.Direction = Light->GetWorldRotation().Quaternion().RotateVector(FVector(-1, 0, 0)).Normalized();
+					bHasDirectional = true;
+				}
+				else if (UPointLightComponent* Light = Cast<UPointLightComponent>(Component))
+				{
+					if (Constants.NumPointLights >= static_cast<int32>(std::size(Constants.PointLights))) continue;
+					auto& Data = Constants.PointLights[Constants.NumPointLights++];
+					const FVector4& Color = Light->GetLightColor();
+					Data.Position = Light->GetWorldLocation();
+					Data.AttenuationRadius = FMath::Max(Light->GetAttenuationRadius(), 0.0f);
+					Data.Color = FVector(Color.X, Color.Y, Color.Z);
+					Data.Intensity = FMath::Max(Light->GetIntensity(), 0.0f);
+					Data.FalloffExponent = FMath::Max(Light->GetFalloff(), 0.0f);
+				}
+				else if (USpotLightComponent* Light = Cast<USpotLightComponent>(Component))
+				{
+					if (Constants.NumSpotLights >= static_cast<int32>(std::size(Constants.SpoitLights))) continue;
+					auto& Data = Constants.SpoitLights[Constants.NumSpotLights++];
+					const FVector4& Color = Light->GetLightColor();
+					Data.Position = Light->GetWorldLocation();
+					Data.AttenuationRadius = FMath::Max(Light->GetAttenuationRadius(), 0.0f);
+					Data.Color = FVector(Color.X, Color.Y, Color.Z);
+					Data.Intensity = FMath::Max(Light->GetIntensity(), 0.0f);
+					Data.Direction = Light->GetWorldRotation().Quaternion().RotateVector(FVector(-1, 0, 0)).Normalized();
+					Data.FalloffExponent = FMath::Max(Light->GetFalloff(), 0.0f);
+					const float OuterAngle = FMath::Clamp(Light->GetOuterConeAngle(), 0.0f, 89.0f);
+					const float InnerAngle = FMath::Clamp(Light->GetInnerConeAngle(), 0.0f, OuterAngle);
+					Data.InnerCos = std::cosf(FMath::DegreesToRadians(InnerAngle));
+					Data.OuterCos = std::cosf(FMath::DegreesToRadians(OuterAngle));
+				}
+			}
+		}
+	}
+
+	// 광원이 없어도 빈 데이터를 전달해 이전 월드/프레임의 값을 지운다.
+	Renderer->SetLight(Constants);
 }
 
 void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContext* LODView, const FFrustumPlanes* Frustum, FRenderer* Renderer)

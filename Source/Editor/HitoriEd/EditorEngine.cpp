@@ -112,8 +112,9 @@ bool UEditorEngine::Init()
 	DepthViewRenderer = MakeUnique<FDepthViewRenderer>();
 	DepthViewRenderer->Init();
 
-	LightRenderer = MakeUnique<FLightRenderer>();
-	LightRenderer->Init();
+	// LightRenderer 구현을 다시 연결할 때 초기화도 활성화한다.
+	// LightRenderer = MakeUnique<FLightRenderer>();
+	// LightRenderer->Init();
 
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
@@ -418,7 +419,7 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
 			// FireBall 라이트 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
 			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
-			ViewWorld->GetScene().UpdateDirectionalLight(Renderer);
+			ViewWorld->UpdateLightConstants(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
@@ -449,6 +450,7 @@ void UEditorEngine::RenderMultipleViewports()
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
 			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
+			ViewWorld->UpdateLightConstants(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
@@ -569,7 +571,7 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
-		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
+		Renderer->RenderQueueSorting(RenderQueue, ViewProjection, ViewCameraLocation);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
@@ -816,10 +818,11 @@ void UEditorEngine::RenderLightPass(const int32 ViewIndex, UWorld& ViewWorld, co
 
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	LightRenderer->OnRender(
-		ViewRenderingInfo.DepthStencil.Texture,
-		ViewProjection,
-		ViewCameraLocation);
+	// LightRenderer 구현이 비활성화되어 있으므로 호출도 보류한다.
+	// LightRenderer->OnRender(
+	// 	ViewRenderingInfo.DepthStencil.Texture,
+	// 	ViewProjection,
+	// 	ViewCameraLocation);
 
 	// 다음 패스에서 깊이 버퍼를 다시 사용할 수 있도록 해제
 	RenderCommand::UnbindShaderResource(
@@ -888,8 +891,6 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	if (SettingsPanel->GetSettings().bDepthView)
 	{
 		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
-
-
 	}
 	else
 	{
@@ -905,7 +906,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 
 
 	// ?. Lighting Pass
-	RenderLightPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	//RenderLightPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 	// 4. 오버레이 Pass
 	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);

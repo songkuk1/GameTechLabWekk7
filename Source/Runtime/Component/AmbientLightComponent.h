@@ -18,6 +18,10 @@ public:
 	UAmbientLightComponent(const UAmbientLightComponent&) = delete;
 	UAmbientLightComponent& operator=(const UAmbientLightComponent& ) = delete;
 
+	void DrawDebug(FLineBatcher*) const override {}
+	float GetIntensity() const { return Intensity; }
+	const FVector4& GetLightColor() const { return LightColor; }
+
 private:
 	//빛의 강도
 	float Intensity = 0.2f;
