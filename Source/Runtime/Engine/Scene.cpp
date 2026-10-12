@@ -356,3 +356,62 @@ void FScene::UnregisterDirectLight(UDirectionalLightComponent* DLightComp)
 		}
 	}
 }
+
+void FScene::UpdatePointLight(FRenderer* Renderer)
+{
+	if (!Renderer)
+		return;
+
+	FPointLight Data{};
+	FPointLightConstants Constants{};
+
+	Constants.LightCount = 0;
+
+	for (UPointLightComponent* PointLight : PointLightComponents)
+	{
+		if (Constants.LightCount >= MaxPointLights)
+		{
+			break;
+		}
+
+		if (!PointLight)
+			continue;
+
+		Data.Position = PointLight->GetWorldLocation();
+		Data.Radius = PointLight->GetAttenuationRadius();
+		Data.LightColor = PointLight->GetLightColor();
+		Data.Intensity = PointLight->GetIntensity();
+		Data.Attenuation = PointLight->GetFalloff();
+		const FVector4 Color = PointLight->GetLightColor();
+
+		Data.Intensity = std::max<float>(PointLight->GetIntensity(), 0.0f);
+
+		Constants.Light[Constants.LightCount] = Data;
+		Constants.LightCount++;
+	}
+
+	Renderer->SetPointLight(Constants);
+}
+void FScene::RegisterPointLight(UPointLightComponent* PLightComp)
+{
+	if (!PLightComp)
+		return;
+
+	for (UPointLightComponent* Existing : PointLightComponents)
+	{
+		if (Existing == PLightComp)
+			return;
+	}
+	PointLightComponents.Add(PLightComp);
+}
+void FScene::UnregisterPointLight(UPointLightComponent* PLightComp)
+{
+	for (uint32 i = 0; i < PointLightComponents.Num(); ++i)
+	{
+		if (PointLightComponents[i] == PLightComp)
+		{
+			PointLightComponents.RemoveAt(i, 1);
+			return;
+		}
+	}
+}

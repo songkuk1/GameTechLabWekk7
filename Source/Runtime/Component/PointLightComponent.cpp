@@ -1,7 +1,32 @@
 #include "EnginePCH.h"
 #include "Component/PointLightComponent.h"
-
+#include "Asset/AssetManager.h"
+#include "Engine/World.h"
 #include "Render/LineBatcher.h"
+
+UPointLightComponent::~UPointLightComponent()
+{
+	if (AActor* Owner = GetOwner())
+	{
+		if (UWorld* World = Owner->GetWorld())
+		{
+			World->GetScene().UnregisterPointLight(this);
+		}
+	}
+}
+
+void UPointLightComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+
+	if (AActor* Owner = GetOwner())
+	{
+		if (UWorld* World = Owner->GetWorld())
+		{
+			World->GetScene().RegisterPointLight(this);
+		}
+	}
+}
 
 namespace
 {

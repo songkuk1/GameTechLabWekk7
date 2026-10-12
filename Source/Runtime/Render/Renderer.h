@@ -10,6 +10,7 @@
 constexpr uint32 ObjectSlotBytes = 256;
 constexpr uint32 MaxFireBalls = 16;
 constexpr uint32 MaxDirectLights = 2;
+constexpr uint32 MaxPointLights = 16;
 
 struct FPerObjectConstants
 {
@@ -61,9 +62,26 @@ struct alignas(16) FDirectionalLight
 	FVector4 EXP; // x: ?, y: ?, z :, w: ? (추후 추가 입력값 대비)
 };
 
+struct alignas(16) FPointLight
+{
+	FVector Position;	// 기존 StaticMeshShader.hlsl 가 Position 을 float3 으로 받음;;;; 수정필요;;
+	float Radius;
+	FVector4 LightColor;
+	float Intensity;
+	float Attenuation;
+	float Padding[2] = {};
+};
+
 struct alignas(16) FDirectionalLightConstants
 {
 	FDirectionalLight Light[MaxDirectLights];
+	uint32 LightCount;
+	uint32 Padding[3] = {};
+};
+
+struct alignas(16) FPointLightConstants
+{
+	FPointLight Light[MaxPointLights];
 	uint32 LightCount;
 	uint32 Padding[3] = {};
 };
@@ -106,6 +124,7 @@ public:
 
 	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
 	void SetDirectionalLight(const FDirectionalLightConstants& LightData);
+	void SetPointLight(const FPointLightConstants& LightData);
 
 private:
 	// FIFO 소비용 배열의 용량만 재사용하며 매 View의 패킷 값은 새로 채운다.
@@ -146,7 +165,9 @@ private:
 
 	TUniquePtr<FConstantBuffer> FireBallLightCB;
 	TUniquePtr<FConstantBuffer> DirectionalLightCB;
+	TUniquePtr<FConstantBuffer> PointLightCB;
 
 	FFireBallLightConstants FireBallLightData{};
 	FDirectionalLightConstants DirectionalLightData{};
+	FPointLightConstants PointLightData{};
 };

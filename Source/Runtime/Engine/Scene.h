@@ -5,6 +5,7 @@
 #include "Component/PrimitiveComponent.h"
 #include "Component/FireBallComponent.h"
 #include "Component/DirectionalLightComponent.h"
+#include "Component/PointLightComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
@@ -46,6 +47,10 @@ public:
 	void RegisterDirectLight(UDirectionalLightComponent* DLightComp);
 	void UnregisterDirectLight(UDirectionalLightComponent* DLightComp);
 
+	void UpdatePointLight(FRenderer* Renderer);
+	void RegisterPointLight(UPointLightComponent* PLightComp);
+	void UnregisterPointLight(UPointLightComponent* PLightComp);
+
 
 	TArray<FPrimitiveSceneProxy*> Proxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
@@ -67,4 +72,6 @@ public:
 	
 	TArray<UFireBallComponent*> FireBallComponents;
 	TArray<UDirectionalLightComponent*> DirectionalLightComponents;
+	TArray<UPointLightComponent*> PointLightComponents;
+
 };

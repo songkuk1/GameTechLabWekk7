@@ -19,7 +19,9 @@ class UPointLightComponent : public ULightComponent
 
 public:
 	UPointLightComponent() = default;
-	virtual ~UPointLightComponent() override = default;
+	virtual ~UPointLightComponent() override;
+
+	void InitializeComponent();
 
 	void DrawDebug(FLineBatcher* LineBatcher) const override;
 
@@ -32,6 +34,9 @@ public:
 	float GetFalloff() const { return Falloff; }
 	void SetFalloff(float InFalloff) { Falloff = InFalloff; }
 
+	float GetIntensity() const { return Intensity; }
+	void SetIntensity(float InIntensity) { Intensity = InIntensity; }
+		
 	float GetAttenuationRadius() const { return AttenuationRadius; }
 	void SetAttenuationRadius(float InRadius) { AttenuationRadius = InRadius; }
 

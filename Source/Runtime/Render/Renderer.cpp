@@ -64,6 +64,7 @@ bool FRenderer::Init()
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
 	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
 	DirectionalLightCB = RenderCommand::CreateConstantBuffer(sizeof(FDirectionalLightConstants));
+	PointLightCB = RenderCommand::CreateConstantBuffer(sizeof(FPointLightConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -143,6 +144,7 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
 	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, PointLightCB.get(), EShaderBindFlagBits::Pixel);
 
 	DrawStaticGroups();
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
@@ -152,6 +154,7 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
 	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+	RenderCommand::BindConstantBuffer(4, PointLightCB.get(), EShaderBindFlagBits::Pixel);
 
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
@@ -537,4 +540,10 @@ void FRenderer::SetDirectionalLight(const FDirectionalLightConstants& LightData)
 {
 	DirectionalLightData = LightData;
 	RenderCommand::UpdateBufferData(DirectionalLightCB.get(), &DirectionalLightData, sizeof(FDirectionalLightConstants));
+}
+
+void FRenderer::SetPointLight(const FPointLightConstants& LightData)
+{
+	PointLightData = LightData;
+	RenderCommand::UpdateBufferData(PointLightCB.get(), &PointLightData, sizeof(FPointLightConstants));
 }

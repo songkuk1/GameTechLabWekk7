@@ -97,6 +97,8 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 			Scene.RegisterFireBall(FireBall);
 		else if (UDirectionalLightComponent* DirectLight = Cast<UDirectionalLightComponent>(Component))
 			Scene.RegisterDirectLight(DirectLight);
+		else if (UPointLightComponent* PointLight = Cast<UPointLightComponent>(Component))
+			Scene.RegisterPointLight(PointLight);
 	}
 
 	// 4. Level->Actors에 등록

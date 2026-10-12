@@ -416,6 +416,7 @@ void UEditorEngine::RenderMultipleViewports()
 			// FireBall 라이트 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
 			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			ViewWorld->GetScene().UpdateDirectionalLight(Renderer);
+			ViewWorld->GetScene().UpdatePointLight(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
