@@ -8,7 +8,6 @@
 #include "Occlusion/GPUOcclusion.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
-constexpr uint32 MaxFireBalls = 16;
 constexpr uint32 MaxDirectLights = 2;
 
 struct FPerObjectConstants
@@ -23,6 +22,26 @@ struct FSortEntry
 };
 
 class UCameraComponent;
+class FShaderProgram;
+
+// 뷰 모드에 따라 BindMaterial이 머티리얼 셰이더를 갈아 끼운다.
+// 에디터의 EMultipleViewPortsViewMode와 값 순서를 맞춘다.
+enum class ERenderViewMode : uint8
+{
+	Unlit,          
+	Lit_Gouraud,  
+	Lit_Lambert,   
+	Lit_Phong,     
+	Count
+};
+
+//Phong 스페큘러 등 뷰 방향이 필요한 셰이더가 쓴다. 뷰마다 다르다.
+struct alignas(16) FCameraConstants
+{
+	FVector CameraPosition;   // 월드 공간 카메라 위치
+	float Padding = 0.0f;
+};
+static_assert(sizeof(FCameraConstants) == 16);
 
 // 오클루전 컬링의 효과 상한을 재기 위한 측정 결과 (디버그 전용)
 struct FOcclusionMeasureResult
@@ -40,25 +59,67 @@ struct FOcclusionMeasureResult
 	uint32 FalseCulls = 0;        // 그중 실제로는 픽셀이 보인 드로우 수. 0이어야 한다
 };
 
-struct alignas(16) FFireBallLight
+// 아래 라이트 구조체는 UberLit.hlsl의 같은 이름 구조체와 바이트 단위로 같아야 한다.
+struct FAmbientLightInfo
 {
-	FVector4 PositionRadius; // xyz: 위치, w: 반경
-	FVector4 ColorIntensity; // rgb: 색상, w: 강도
-	FVector4 FalloffEnabled; // x: 반경 감쇠, y: 사용 여부, zw: 패딩
+	FVector4 ColorIntensity; 
 };
 
-struct alignas(16) FFireBallLightConstants
+struct FDirectionalLightInfo
 {
-	FFireBallLight Light[MaxFireBalls];
-	uint32 LightCount;
-	uint32 Padding[3] = {};
+	FVector4 ColorIntensity; 
+	FVector4 Direction;   
+};
+
+// LightBuffer (b4)
+struct alignas(16) FLightConstants
+{
+	FAmbientLightInfo Ambient;
+	FDirectionalLightInfo Directional;
+	uint32 PointLightCount = 0;
+	uint32 SpotLightCount = 0;
+	uint32 Padding[2] = {};
+};
+static_assert(sizeof(FLightConstants) == 64);
+
+//StructuredBuffer(t1)
+struct FPointLightInfo
+{
+	FVector4 ColorIntensity; // rgb: 색상, w: 강도
+	FVector Position;
+	float AttenuationRadius;
+	float Falloff;
+	float Padding[3];
+};
+static_assert(sizeof(FPointLightInfo) == 48);
+
+// StructuredBuffer (t2)
+struct FSpotLightInfo
+{
+	FVector4 ColorIntensity; 
+	FVector Position;
+	float AttenuationRadius;
+	FVector Direction;      
+	float Falloff;
+	float CosInner;         
+	float CosOuter;         
+	float Padding[2];
+};
+static_assert(sizeof(FSpotLightInfo) == 64);
+
+// 라이트 수만큼 커지는 동적 구조화 버퍼와 그 SRV
+struct FLightStructuredBuffer
+{
+	ComPtr<ID3D11Buffer> Buffer;
+	ComPtr<ID3D11ShaderResourceView> SRV;
+	uint32 Capacity = 0;
 };
 
 struct alignas(16) FDirectionalLight
 {
-	FVector4 Direction; // xyz: 방향, w: 패딩
-	FVector4 ColorIntensity; // rgb: 색상, w: 강도
-	FVector4 EXP; // x: ?, y: ?, z :, w: ? (추후 추가 입력값 대비)
+	FVector4 Direction;
+	FVector4 ColorIntensity;
+	FVector4 EXP; 
 };
 
 struct alignas(16) FDirectionalLightConstants
@@ -104,7 +165,15 @@ public:
 	uint8* BeginObjectConstants(uint32 MaxSlots);
 	void EndObjectConstants();
 
-	void SetFireBallLight(const FFireBallLightConstants& LightConstants);
+	// 이후 그리는 뷰의 셰이딩 모드. 뷰마다 RenderFrame 시작에서 설정한다.
+	void SetViewMode(ERenderViewMode InViewMode) { ViewMode = InViewMode; }
+
+	// 이후 그리는 뷰의 카메라 위치를 b5에 올린다. 뷰마다 RenderFrame 시작에서 설정한다.
+	void SetCameraPosition(const FVector& InCameraPosition);
+
+	// FScene::UpdateLights가 모은 라이트를 b4 상수버퍼와 t1/t2 구조화 버퍼에 올린다.
+	// 버퍼는 뷰끼리 공유하므로, 직전에 올린 것과 같은 출처(씬)·같은 버전이면 업로드를 건너뛴다.
+	void SetLights(const void* Source, uint32 Version, const FLightConstants& Constants, const TArray<FPointLightInfo>& PointLights, const TArray<FSpotLightInfo>& SpotLights);
 	void SetDirectionalLight(const FDirectionalLightConstants& LightData);
 
 private:
@@ -144,9 +213,32 @@ private:
 
 	TArray<FSortEntry> SortEntries;
 
-	TUniquePtr<FConstantBuffer> FireBallLightCB;
 	TUniquePtr<FConstantBuffer> DirectionalLightCB;
-
-	FFireBallLightConstants FireBallLightData{};
 	FDirectionalLightConstants DirectionalLightData{};
+
+	TUniquePtr<FConstantBuffer> LightCB;
+	// 마지막으로 라이트 버퍼에 올린 데이터의 출처와 버전 (SetLights 업로드 생략 판단용)
+	const void* LastLightSource = nullptr;
+	uint32 LastLightVersion = 0;
+	FLightStructuredBuffer PointLightBuffer;
+	FLightStructuredBuffer SpotLightBuffer;
+
+	// 필요한 개수가 용량을 넘을 때만 두 배씩 키워 다시 만든다.
+	bool EnsureLightBufferCapacity(FLightStructuredBuffer& Target, uint32 Count, uint32 Stride);
+	void UploadLightBuffer(FLightStructuredBuffer& Target, const void* Data, uint32 Count, uint32 Stride);
+	// 불투명/반투명 패스 시작 시 VS/PS에 b4(라이트), b5(카메라), t1/t2(Point/Spot)를 묶는다.
+	void BindLights();
+
+	// 라이트 버퍼(SetLights)와 달리 뷰마다 값이 달라 캐시 없이 매번 올린다.
+	TUniquePtr<FConstantBuffer> CameraCB;
+
+	ERenderViewMode ViewMode = ERenderViewMode::Lit_Gouraud;
+
+	// 뷰 모드별로 갈아 끼울 셰이더. Renderer::Init은 셰이더 로드(FRenderResourceManager::Init)보다
+	// 먼저 불리므로 처음 필요할 때 맵에서 찾아(필요하면 변형을 컴파일해) 둔다.
+	void ResolveViewModeShaders();
+	bool bViewModeShadersResolved = false;
+	FShaderProgram* StaticMeshShader = nullptr;
+	// 인덱스 = ERenderViewMode. Unlit 칸은 비워 두고 머티리얼 셰이더(StaticMeshShader)를 그대로 쓴다.
+	FShaderProgram* ViewModeShaders[static_cast<uint32>(ERenderViewMode::Count)] = {};
 };

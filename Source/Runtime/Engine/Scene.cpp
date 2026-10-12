@@ -1,5 +1,9 @@
 ﻿#include "EnginePCH.h"
 #include "Scene.h"
+#include "AmbientLightSceneProxy.h"
+#include "DirectionalLightSceneProxy.h"
+#include "PointLightSceneProxy.h"
+#include "SpotLightSceneProxy.h"
 
 void FScene::AddPrimitive(UPrimitiveComponent* Component)
 {
@@ -143,6 +147,15 @@ void FScene::UpdateAllTransforms()
 		PrimitiveFlags[Proxy->PackedIndex] = Proxy->GetComponent()->IsVisible() ? 1 : 0;
 		Proxy->bQueuedForUpdate = false;
 	}
+
+	for (FLightSceneProxy* Proxy : DirtyLightProxies)
+	{
+		Proxy->UpdateFromComponent(Proxy->Component);
+		Proxy->bQueuedForUpdate = false;
+	}
+	if (DirtyLightProxies.Num() > 0)
+		bLightInfosDirty = true;
+	DirtyLightProxies.Reset();
 	
 	//const int32 Count = Proxies.Num();
 	//for (int32 i = 0; i < Count; ++i)
@@ -206,84 +219,105 @@ void FScene::MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy)
 }
 
 
-void FScene::UpdateFireBallLight(FRenderer* Renderer)
+// 라이트가 바뀐 프레임에만 프록시를 GPU 형식으로 다시 모으고, 캐시를 렌더러에 넘긴다.
+void FScene::UpdateLights(FRenderer* Renderer)
 {
 	if (!Renderer)
 		return;
 
-	FFireBallLight Data{};
-	FFireBallLightConstants Constants{};
-
-	Constants.LightCount = 0;
-
-	// 기본값: 활성 FireBall 없음
-	Data.PositionRadius = FVector4(0, 0, 0, 0);
-	Data.ColorIntensity = FVector4(0, 0, 0, 0);
-	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
-
-	for (UFireBallComponent* FireBall : FireBallComponents)
+	if (bLightInfosDirty)
 	{
-		if (Constants.LightCount >= MaxFireBalls)
-		{
-			break; // 최대 FireBall 수를 초과하면 루프 종료
-		}
+		RebuildLightInfos();
+		bLightInfosDirty = false;
 
-		if (!FireBall)
-			continue;
-
-		const FVector Position = FireBall->GetWorldLocation();
-		const FVector4 Color = FireBall->GetLightColor();
-
-		Data.PositionRadius = FVector4(
-			Position.X,
-			Position.Y,
-			Position.Z,
-			std::max<float>(FireBall->GetRadius(), 0.001f)
-		);
-
-		Data.ColorIntensity = FVector4(
-			Color.X,
-			Color.Y,
-			Color.Z,
-			std::max<float>(FireBall->GetIntensity(), 0.0f)
-		);
-
-		Data.FalloffEnabled = FVector4(
-			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
-			1.0f,
-			0.0f,
-			0.0f
-		);
-
-		Constants.Light[Constants.LightCount] = Data;
-		Constants.LightCount++;
+		// 씬마다 0부터 세면, 지워진 월드 자리에 새 월드가 같은 주소로 생겼을 때 렌더러가 같은 버전으로 착각한다.
+		// 모든 씬이 공유하는 카운터로 버전을 매겨 겹치지 않게 한다.
+		static uint32 LightInfosVersionCounter = 0;
+		LightInfosVersion = ++LightInfosVersionCounter;
 	}
 
-	Renderer->SetFireBallLight(Constants);
+	Renderer->SetLights(this, LightInfosVersion, LightConstants, PointLightInfos, SpotLightInfos);
 }
 
-void FScene::RegisterFireBall(UFireBallComponent* FireBall)
+// 라이트 프록시를 종류별로 모아 GPU 형식으로 바꾼다. 컴포넌트는 읽지 않는다.
+void FScene::RebuildLightInfos()
 {
-	if (!FireBall)
-		return;
+	// 멤버라 지난 값이 남으므로 반드시 비운다 (지운 Directional이 남지 않게)
+	LightConstants = {};
+	PointLightInfos.Reset();
+	SpotLightInfos.Reset();
 
-	for (UFireBallComponent* Existing : FireBallComponents)
+	FVector AmbientSum(0.0f, 0.0f, 0.0f);
+	bool bHasDirectional = false;
+
+	for (const FLightSceneProxy* Proxy : LightProxies)
 	{
-		if (Existing == FireBall)
-			return;
-	}
-	FireBallComponents.Add(FireBall);
-}
-void FScene::UnregisterFireBall(UFireBallComponent* FireBall)
-{
-	for (uint32 i = 0; i < FireBallComponents.Num(); ++i)
-	{
-		if (FireBallComponents[i] == FireBall)
+		switch (Proxy->GetLightType())
 		{
-			FireBallComponents.RemoveAt(i, 1);
-			return;
+		case ELightType::Ambient:
+		{
+			// 여러 개면 더한다
+			const FAmbientLightSceneProxy* Ambient = static_cast<const FAmbientLightSceneProxy*>(Proxy);
+			const float Intensity = std::max(Ambient->Intensity, 0.0f);
+			AmbientSum.X += Ambient->LightColor.X * Intensity;
+			AmbientSum.Y += Ambient->LightColor.Y * Intensity;
+			AmbientSum.Z += Ambient->LightColor.Z * Intensity;
+			break;
+		}
+		case ELightType::Directional:
+		{
+			// 셰이더는 Directional을 하나만 받으므로 첫 번째만 쓴다
+			if (bHasDirectional)
+				break;
+			bHasDirectional = true;
+
+			const FDirectionalLightSceneProxy* Directional = static_cast<const FDirectionalLightSceneProxy*>(Proxy);
+			const FVector4& Color = Directional->LightColor;
+			LightConstants.Directional.ColorIntensity = FVector4(Color.X, Color.Y, Color.Z, std::max(Directional->Intensity, 0.0f));
+			LightConstants.Directional.Direction = FVector4(Directional->Direction.X, Directional->Direction.Y, Directional->Direction.Z, 0.0f);
+			break;
+		}
+		case ELightType::Point:
+		{
+			const FPointLightSceneProxy* Point = static_cast<const FPointLightSceneProxy*>(Proxy);
+			const FVector4& Color = Point->LightColor;
+
+			FPointLightInfo Info{};
+			Info.ColorIntensity = FVector4(Color.X, Color.Y, Color.Z, std::max(Point->Intensity, 0.0f));
+			Info.Position = Point->Position;
+			// 셰이더가 Dist / Radius와 pow(x, Falloff)를 하므로 0을 막는다
+			Info.AttenuationRadius = std::max(Point->AttenuationRadius, 0.001f);
+			Info.Falloff = std::max(Point->Falloff, 0.001f);
+			PointLightInfos.Add(Info);
+			break;
+		}
+		case ELightType::Spot:
+		{
+			const FSpotLightSceneProxy* Spot = static_cast<const FSpotLightSceneProxy*>(Proxy);
+			const FVector4& Color = Spot->LightColor;
+
+			// 에디터 값은 신뢰할 수 없으므로 DrawDebug와 같은 범위로 자른다
+			const float OuterAngle = FMath::Clamp(Spot->OuterConeAngle, 0.0f, 89.0f);
+			const float InnerAngle = FMath::Clamp(Spot->InnerConeAngle, 0.0f, OuterAngle);
+
+			FSpotLightInfo Info{};
+			Info.ColorIntensity = FVector4(Color.X, Color.Y, Color.Z, std::max(Spot->Intensity, 0.0f));
+			Info.Position = Spot->Position;
+			Info.AttenuationRadius = std::max(Spot->AttenuationRadius, 0.001f);
+			Info.Direction = Spot->Direction;
+			Info.Falloff = std::max(Spot->Falloff, 0.001f);
+			Info.CosOuter = std::cos(FMath::DegreesToRadians(OuterAngle));
+			// smoothstep(CosOuter, CosInner)는 두 값이 같으면 0으로 나누므로 최소 간격을 둔다
+			Info.CosInner = std::max(std::cos(FMath::DegreesToRadians(InnerAngle)), Info.CosOuter + 0.0001f);
+			SpotLightInfos.Add(Info);
+			break;
+		}
 		}
 	}
+
+	LightConstants.Ambient.ColorIntensity = FVector4(AmbientSum.X, AmbientSum.Y, AmbientSum.Z, 1.0f);
+	LightConstants.PointLightCount = static_cast<uint32>(PointLightInfos.Num());
+	LightConstants.SpotLightCount = static_cast<uint32>(SpotLightInfos.Num());
 }
 
 void FScene::UpdateDirectionalLight(FRenderer* Renderer)
@@ -355,4 +389,63 @@ void FScene::UnregisterDirectLight(UDirectionalLightComponent* DLightComp)
 			return;
 		}
 	}
+}
+
+void FScene::AddLight(ULightComponent* Component)
+{
+	if (!Component || Component->SceneProxy) return;   // 이미 등록됨
+
+	FLightSceneProxy* Proxy = Component->CreateSceneProxy();
+	if (!Proxy) return;
+
+	Proxy->Scene = this;
+	Proxy->Component = Component;
+	Proxy->PackedIndex = LightProxies.Num();
+	Component->SceneProxy = Proxy;
+
+	LightProxies.Add(Proxy);
+	bLightInfosDirty = true;
+}
+
+void FScene::RemoveLight(ULightComponent* Component)
+{
+	if (!Component || !Component->SceneProxy) return;
+
+	FLightSceneProxy* Proxy = Component->SceneProxy;
+	const uint32 Index = static_cast<uint32>(Proxy->PackedIndex);
+
+	// 마지막 원소를 빈자리로 옮기고, 옮겨진 프록시의 인덱스를 갱신
+	LightProxies.RemoveAtSwap(Index);
+	if (Index < static_cast<uint32>(LightProxies.Num()))
+		LightProxies[Index]->PackedIndex = static_cast<int32>(Index);
+
+	if (Proxy->bQueuedForUpdate)
+	{
+		const int32 Found = DirtyLightProxies.Find(Proxy);
+		if (Found != INDEX_NONE) DirtyLightProxies.RemoveAtSwap(Found);
+	}
+
+	Component->SceneProxy = nullptr;
+	delete Proxy;
+	bLightInfosDirty = true;
+}
+
+void FScene::RemoveAllLights()
+{
+	for (FLightSceneProxy* Proxy : LightProxies)
+	{
+		if (Proxy->Component)
+			Proxy->Component->SceneProxy = nullptr;
+		delete Proxy;
+	}
+	LightProxies.Reset();
+	DirtyLightProxies.Reset();
+	bLightInfosDirty = true;
+}
+
+void FScene::MarkLightDirty(FLightSceneProxy* Proxy)
+{
+	if (!Proxy || Proxy->bQueuedForUpdate) return;   // 중복 추가 방지
+	Proxy->bQueuedForUpdate = true;
+	DirtyLightProxies.Add(Proxy);
 }

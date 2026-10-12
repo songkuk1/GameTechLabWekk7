@@ -23,11 +23,13 @@ public:
 	
 	virtual void DrawDebug(FLineBatcher* LineBatcher) const override;
 
-	float GetIntensity() { return Intensity; }
-	void SetIntensity(float intensity) { Intensity = intensity; }
+	float GetIntensity() const { return Intensity; }
+	void SetIntensity(float intensity) { Intensity = intensity; MarkLightDirty(); }
 
-	FVector4 GetLightColor() { return LightColor; }
-	void SetLightColor(FVector4 lightcolor) { LightColor = lightcolor; }
+	const FVector4& GetLightColor() const { return LightColor; }
+	void SetLightColor(FVector4 lightcolor) { LightColor = lightcolor; MarkLightDirty(); }
+
+	virtual FLightSceneProxy* CreateSceneProxy() const override;
 
 private:
 	float Intensity = 1.0f;

@@ -2,6 +2,7 @@
 #include "Component/SpotLightComponent.h"
 
 #include "Render/LineBatcher.h"
+#include "Engine/SpotLightSceneProxy.h"
 
 namespace
 {
@@ -131,4 +132,9 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 	FVector4 InnerColor(LightColor.X * 0.5f, LightColor.Y * 0.5f, LightColor.Z * 0.5f, LightColor.W);
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
+}
+
+FLightSceneProxy* USpotLightComponent::CreateSceneProxy() const
+{
+	return new FSpotLightSceneProxy(this);
 }

@@ -31,7 +31,7 @@ public:
 	float ConsumeHorizontalDrag();
 	float ConsumeVerticalDrag();
 	// Core의 현재 Layout과 View별 Preset을 UI 표시 상태에 동기화한다.
-	void SetControlState(ELayoutMode LayoutMode, int32 SingleViewIndex, const EMultipleViewportsCameraPreset CameraPresets[4]);
+	void SetControlState(const ELayoutMode LayoutMode, const int32 SingleViewIndex, const EMultipleViewportsCameraPreset CameraPresets[4], const EMultipleViewPortsViewMode ViewModes[4]);
 	// UI에서 발생한 Layout 변경 요청을 한 번 소비하도록 반환한다.
 	bool ConsumeLayoutRequest(ELayoutMode& OutMode, int32& OutSingleViewIndex);
 	// UI에서 발생한 View별 Camera Preset 요청을 한 번 소비하도록 반환한다.
@@ -72,6 +72,7 @@ private:
 	ELayoutMode CurrentLayoutMode = ELayoutMode::QuadSplit;
 	int32 CurrentSingleViewIndex = 0;
 	EMultipleViewportsCameraPreset CurrentCameraPresets[4]{};
+	EMultipleViewPortsViewMode CurrentViewModes[4]{};
 	bool bHasLayoutRequest = false;
 	ELayoutMode RequestedLayoutMode = ELayoutMode::QuadSplit;
 	int32 RequestedSingleViewIndex = 0;

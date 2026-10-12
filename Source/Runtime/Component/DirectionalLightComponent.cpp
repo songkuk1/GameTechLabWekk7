@@ -2,6 +2,7 @@
 #include "Component/DirectionalLightComponent.h"
 #include "Asset/AssetManager.h"
 #include "Engine/World.h"
+#include "Engine/DirectionalLightSceneProxy.h"
 
 UDirectionalLightComponent::~UDirectionalLightComponent()
 {
@@ -29,4 +30,9 @@ void UDirectionalLightComponent::InitializeComponent()
 
 void UDirectionalLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 {
+}
+
+FLightSceneProxy* UDirectionalLightComponent::CreateSceneProxy() const
+{
+	return new FDirectionalLightSceneProxy(this);
 }

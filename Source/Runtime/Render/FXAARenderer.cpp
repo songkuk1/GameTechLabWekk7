@@ -9,7 +9,7 @@
 bool FFXAARenderer::Init()
 {
 
-	fxaaShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/FxaaShader.hlsl");
+	fxaaShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/UberLit.hlsl");
 	if (!fxaaShader)
 	{
 		HTR_LOG(Error, "[FXAA] shader not found");
