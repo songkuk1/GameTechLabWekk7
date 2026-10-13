@@ -46,6 +46,7 @@ namespace
 		}
 
 		Optimized.OptimizeTriangleOrderForVertexCache();
+		Optimized.BuildTangnetAll();
 		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertexPNCT) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertexPNCT));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(Optimized.Indices.GetData(), static_cast<uint32>(Optimized.Indices.size()));
 		if (VB == nullptr || IB == nullptr) return nullptr;
@@ -396,6 +397,7 @@ bool UAssetManager::ReorientStaticMesh(UStaticMesh& Mesh, const std::function<FV
 		Bounds.Max = FVector(std::max(Bounds.Max.X, Vertex.Position.X), std::max(Bounds.Max.Y, Vertex.Position.Y), std::max(Bounds.Max.Z, Vertex.Position.Z));
 	}
 	Data.AABB = Bounds;
+	Data.BuildTangnetAll();
 
 	// 인덱스는 그대로다 (회전은 삼각형 감기 방향을 바꾸지 않는다). 정점 버퍼만 다시 올린다.
 	TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Data.Vertices.GetData(),
@@ -443,6 +445,7 @@ FLODGenerateResult UAssetManager::GenerateStaticMeshLODs(UStaticMesh& Mesh, cons
 		FStaticMeshLODResource Resource;
 		Resource.Data = std::move(Data);
 		Resource.Data.OptimizeTriangleOrderForVertexCache();
+		Resource.Data.BuildTangnetAll();
 
 		Resource.VertexBuffer = RenderCommand::CreateStaticVertexBuffer(
 			Resource.Data.Vertices.GetData(),

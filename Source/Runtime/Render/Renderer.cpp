@@ -13,6 +13,8 @@
 
 #include "Camera/CameraComponent.h"
 
+#include "Asset/AssetManager.h"
+
 #include <algorithm>
 #include <chrono>
 #include <unordered_map>
@@ -494,6 +496,7 @@ void FRenderer::BindMaterial(UMaterial* material)
 	{
 		RenderCommand::BindShaderResource(i, material->Textures[i], EShaderBindFlagBits::Pixel);
 	}
+	if (auto* Normal = UAssetManager::Get().LoadTexture("Assets/normalmap.png")) RenderCommand::BindShaderResource(3, Normal, EShaderBindFlagBits::Pixel);
 	RenderCommand::BindSamplerState(0, material->SamplerState, EShaderBindFlagBits::Pixel);
 }
 

@@ -71,5 +71,8 @@ struct FStaticMeshData
 	// 각 material section 안의 삼각형을 vertex 재사용이 가까워지도록 재배열한다.
 	void OptimizeTriangleOrderForVertexCache();
 
+	void BuildTangent(TArray<FVector>& TangentSums, TArray<FVector>& BitangentSums, float index, FVector CP, FVector NP, FVector OP, FVector2 CUV, FVector2 NUV, FVector2 OUV); // 현재 탄젠트를 구할 포인트 & 다음 포인트 & 다른 포인트
+	void BuildTangnetAll(); // Vertices를 3개씩 읽어 처리한다
+
 	void BuildTriangleBVH();
 };

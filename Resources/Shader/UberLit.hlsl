@@ -7,6 +7,7 @@ struct VSInput
     float3 Normal : NORMAL;
     float4 Color : COLOR;
     float2 UV : TEXCOORD0;
+    float4 Tangent : TANGENT;
 };
 
 struct PSInput
@@ -16,6 +17,7 @@ struct PSInput
     float4 Color : COLOR;
     float2 UV : TEXCOORD0;
     float3 worldPos : TEXCOORD1;
+    float4 Tangent : TANGENT;
 };
 
 cbuffer ViewConstants : register(b0)
@@ -27,7 +29,6 @@ cbuffer WorldConstants : register(b2)
     matrix World;
 };
 
-
 cbuffer MaterialParams : register(b1)
 {
     float4 BaseColor;
@@ -37,6 +38,8 @@ cbuffer MaterialParams : register(b1)
 };
 
 Texture2D g_txColor : register(t0);
+Texture2D g_txNormal : register(t3);
+
 SamplerState g_Sample : register(s0);
 
 struct AmbientLightInfo
@@ -191,6 +194,7 @@ PSInput mainVS(VSInput Input)
     Out.worldPos = WorldPos.xyz;
     Out.Normal = WorldN;
     Out.UV = Input.UV;
+    Out.Tangent = float4(mul(float4(Input.Tangent.xyz, 0.0f), World).xyz,Input.Tangent.w);
 
 #if LIGHTING_MODEL_GOURAUD
     // 정점에서는 라이팅만 계산해 넘기고, 텍스처 색은 PS에서 곱한다 (Gouraud는 Specular가 없다)
@@ -208,12 +212,18 @@ float4 mainPS(PSInput Input) : SV_Target
     // 표면색 = 텍스처 * BaseColor (StaticMeshShader와 같다)
     float4 Albedo = g_txColor.Sample(g_Sample, Input.UV + UVOffset) * BaseColor;
     float3 FinalRGB = Albedo.rgb;
+   
+    float3 normalTS = g_txNormal.Sample(g_Sample, Input.UV + UVOffset).rgb * 2.0f - 1.0f;
 
 #if LIGHTING_MODEL_GOURAUD
     // VS가 보간해 준 라이팅
     FinalRGB = Albedo.rgb * Input.Color.rgb;
 #elif LIGHTING_MODEL_LAMBERT || LIGHTING_MODEL_PHONG
     float3 N = normalize(Input.Normal);
+    float3 T = normalize(Input.Tangent.xyz - N * dot(N, Input.Tangent.xyz));
+    float S = Input.Tangent.w < 0.0f ? -1.0f : 1.0f;
+    float3 B = cross(N, T) * S;
+    N = normalize(normalTS.x * T+ normalTS.y * B+ normalTS.z * N);
     float3 V = normalize(CameraPosition - Input.worldPos);
     FLightResult Light = CalcAllLights(Input.worldPos, N, V);   // Lambert면 Specular는 0
     // 스페큘러는 표면색을 곱하지 않는다
