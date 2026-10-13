@@ -31,7 +31,8 @@ enum class ERenderViewMode : uint8
 	Unlit,          
 	Lit_Gouraud,  
 	Lit_Lambert,   
-	Lit_Phong,     
+	Lit_Phong,    
+	World_Normal,
 	Count
 };
 

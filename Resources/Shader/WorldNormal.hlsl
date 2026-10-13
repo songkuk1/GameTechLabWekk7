@@ -30,6 +30,7 @@ struct VS_INPUT
 struct PS_INPUT
 {
     float4 position : SV_POSITION;
+    float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
 };
 
@@ -40,15 +41,13 @@ PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
     output.position = mul(mul(float4(input.p, 1.0f), World), VP);
+    output.normal = mul(float4(input.n, 0.0f), World).xyz;
     output.uv = input.t;
     return output;
 }
 
 float4 mainPS(PS_INPUT input) : SV_TARGET
 {
-    float4 albedo = g_txColor.Sample(g_Sample, input.uv + UVOffset) * BaseColor;
-
-    // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
-    float alpha = bOpaque > 0.5f ? 1.0f : albedo.a;
-    return float4(albedo.rgb, alpha);
+    float3 color = normalize(input.normal) * 0.5f + 0.5f;
+    return float4(color, 1.0);
 }

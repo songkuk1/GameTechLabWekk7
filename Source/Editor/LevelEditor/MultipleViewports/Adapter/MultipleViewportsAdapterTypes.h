@@ -15,7 +15,7 @@ enum class EMultipleViewportsCameraPreset
 // 렌더러의 ERenderViewMode와 값 순서가 같아야 한다 (EditorEngine.cpp에서 static_assert로 확인)
 enum class EMultipleViewPortsViewMode : int
 {
-    UnLit, Lit_Gouraud, Lit_Lambert, Lit_Phong
+    UnLit, Lit_Gouraud, Lit_Lambert, Lit_Phong, World_Normal
 };
 
 // GridRenderer가 소유하는 기존 평면 enum을 재정의 없이 참조한다.

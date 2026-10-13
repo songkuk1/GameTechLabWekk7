@@ -870,6 +870,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Gouraud) == static_cast<int>(ERenderViewMode::Lit_Gouraud));
 	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Lambert) == static_cast<int>(ERenderViewMode::Lit_Lambert));
 	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Phong) == static_cast<int>(ERenderViewMode::Lit_Phong));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::World_Normal) == static_cast<int>(ERenderViewMode::World_Normal));
 	Renderer->SetViewMode(static_cast<ERenderViewMode>(MultipleViewportsAdapter.GetViewMode(ViewIndex)));
 	Renderer->SetCameraPosition(ViewCameraLocation);
 

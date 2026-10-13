@@ -624,7 +624,7 @@ void FRenderer::ResolveViewModeShaders()
 		return;
 	bViewModeShadersResolved = true;
 
-	StaticMeshShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl");
+	StaticMeshShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/Unlit.hlsl");
 
 	
 	struct FViewModeVariant
@@ -646,6 +646,8 @@ void FRenderer::ResolveViewModeShaders()
 		ViewModeShaders[static_cast<uint32>(Variant.Mode)] =
 			FRenderResourceManager::GetShaderProgram("Resources/Shader/UberLit.hlsl", { FShaderDefine{ Variant.Define, "1" } });
 	}
+
+	ViewModeShaders[static_cast<uint32>(ERenderViewMode::World_Normal)] = FRenderResourceManager::GetShaderProgram("Resources/Shader/WorldNormal.hlsl", {});
 }
 
 void FRenderer::SetCameraPosition(const FVector& InCameraPosition)

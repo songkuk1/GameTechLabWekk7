@@ -258,7 +258,7 @@ void FViewportsPanel::OnRender()
             ImGui::SameLine();
 			int ViewMode = static_cast<int>(ViewportAdapter->GetViewMode(ViewIndex));
 			// EMultipleViewPortsViewMode 순서와 같다
-			const char* ViewModeLabels[] = { "UnLit", "Gouraud", "Lambert", "Phong" };
+			const char* ViewModeLabels[] = { "UnLit", "Gouraud", "Lambert", "Phong", "World Normal"};
 			ImGui::SetNextItemWidth(100.0f);
 			
 			if (ImGui::Combo("##ViewMode", &ViewMode, ViewModeLabels, IM_ARRAYSIZE(ViewModeLabels)))
@@ -270,6 +270,7 @@ void FViewportsPanel::OnRender()
 
 
         }
+		ImGui::SameLine();
         if (CurrentLayoutMode == ELayoutMode::QuadSplit)
 		{
 			if (ImGui::SmallButton("Single"))
