@@ -488,6 +488,7 @@ bool FObjImporter::Cook(const FObjInfo& Raw, FStaticMeshData& Out)
 		return false;
 	}
 
+	Cooked.BuildTangnetAll();
 	Out = std::move(Cooked);
 	return true;
 }

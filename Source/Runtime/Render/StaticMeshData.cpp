@@ -213,3 +213,70 @@ void FStaticMeshData::BuildTriangleBVH()
 
 	TriangleBVH->Build(Elements);
 }
+
+void FStaticMeshData::BuildTangent(TArray<FVector>& TangentSums, TArray<FVector>& BitangentSums, float index, FVector CP, FVector NP, FVector OP, FVector2 CUV, FVector2 NUV, FVector2 OUV)
+{
+	FVector E1 = NP - CP;
+	FVector E2 = OP - CP;
+
+	FVector2 UV1 = NUV - CUV;
+	FVector2 UV2 = OUV - CUV;
+
+	float D = UV1.X * UV2.Y - UV1.Y * UV2.X;
+
+	FVector Traw = (E1 * UV2.Y - E2 * UV1.Y) / D;
+	FVector Braw = (E2 * UV1.X - E1 * UV2.X) / D;
+
+	TangentSums[index] += Traw;
+	BitangentSums[index] += Braw;
+}
+
+void FStaticMeshData::BuildTangnetAll()
+{
+	TArray<FVector> TS;
+	TArray<FVector> BS;
+
+	TS.Init(FVector::ZeroVector, Vertices.Num());
+	BS.Init(FVector::ZeroVector, Vertices.Num());
+
+	for (const FStaticMeshSection& Section : Sections)
+	{
+		UINT32 CurrentSectionStartIndex = Section.StartIndex;
+		UINT32 CurrentSectionIndexCount = Section.IndexCount;
+
+		int maxi = CurrentSectionStartIndex + CurrentSectionIndexCount;
+
+		for (int i = CurrentSectionStartIndex; i < maxi; i += 3)
+		{
+			FVertexPNCT F = Vertices[Indices[i]];
+			FVertexPNCT S = Vertices[Indices[i+1]];
+			FVertexPNCT T = Vertices[Indices[i+2]];
+
+			FVector FP = F.Position;
+			FVector SP = S.Position;
+			FVector TP = T.Position;
+
+			FVector2 FUV = F.UV;
+			FVector2 SUV = S.UV;
+			FVector2 TUV = T.UV;
+
+			FVector FN = F.Normal;
+			FVector SN = S.Normal;
+			FVector TN = T.Normal;
+
+			BuildTangent(TS, BS, Indices[i], FP, SP, TP, FUV, SUV, TUV);
+			BuildTangent(TS, BS, Indices[i + 1], SP, TP, FP, SUV, TUV, FUV);
+			BuildTangent(TS, BS, Indices[i + 2], TP, FP, SP, TUV, FUV, SUV);
+		}
+	}
+
+	for (int i = 0; i < Vertices.Num(); i++)
+	{
+		FVector N = Vertices[i].Normal.Normalized();
+		FVector T = (TS[i] - N * N.Dot(TS[i])).Normalized();
+
+		float BD = N.Cross(T).Dot(BS[i]) < 0.0f ? -1.0f : 1.0f;
+
+		Vertices[i].Tangent = FVector4(T, BD);
+	}
+}
