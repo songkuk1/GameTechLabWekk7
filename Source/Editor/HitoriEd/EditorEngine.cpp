@@ -690,6 +690,34 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		}
 	}
 
+	// 에디터 아이콘(라이트·포그 빌보드): 그리드 위에 보이도록 그리드 다음에 그린다.
+	// 오버레이 패스라 PIE View에서는 그려지지 않고, 안개·FXAA도 받지 않는다.
+	if (bShowEditorOverlay && SettingsPanel->GetSettings().bDrawPrimitives)
+	{
+		FRenderQueue IconQueue;
+		for (TObjectIterator<UBillboardComponent> Billboard; Billboard; ++Billboard)
+		{
+			if (!Billboard || !Billboard->bEditorOnly || !Billboard->IsVisible())
+				continue;
+			if (!Billboard->GetOwner() || Billboard->GetOwner()->GetWorld() != &ViewWorld)
+				continue;
+
+			const FVector Scale = Billboard->GetWorldScale3D();
+			const FVector Location = Billboard->GetWorldLocation();
+			const FVector Delta = Location - ViewCameraLocation;
+			Billboard->SubmitEditorIcon(IconQueue, MultipleViewportsAdapter.BuildEngineBillboardMatrix(
+				ViewIndex, Location, Scale.Y, Scale.Z), Delta.Dot(Delta));
+		}
+
+		if (IconQueue.Num() > 0)
+		{
+			RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+			RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			Renderer->RenderQueueSorting(IconQueue, ViewProjection);
+			Renderer->RenderTranslucent(ViewProjection);
+		}
+	}
+
 	// TextRenderComponent 렌더링
 	for (TObjectIterator<UTextRenderComponent> TextComponent; TextComponent; ++TextComponent)
 	{

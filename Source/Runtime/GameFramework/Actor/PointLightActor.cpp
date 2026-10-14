@@ -12,6 +12,8 @@ APointLightActor::APointLightActor()
 	SetIconTextures(PointLightOffIconPath, PointLightOnPath);
 
 	BillboardComponent->SetupAttachment(GetRootComponent());
+
+
 	//빌보드 컴포넌트가 detail 패널에 안보이게함
 	BillboardComponent->SetHiddenInDetails(true);
 	
