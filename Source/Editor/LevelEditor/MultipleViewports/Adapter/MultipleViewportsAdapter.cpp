@@ -820,3 +820,15 @@ void FMultipleViewportsAdapter::SetSplitRatio(const FSplitRatio& Value)
 {
     SplitRatio = ClampSplitRatio(Value, MinimumSplitRatio);
 }
+FMatrix FMultipleViewportsAdapter::GetEngineViewMatrix(const int32 ViewIndex) const
+{
+    assert(IsViewActive(ViewIndex));
+    return BuildViewMatrix(GetRenderCamera(ViewIndex).Transform);
+}
+
+FMatrix FMultipleViewportsAdapter::GetEngineProjectionMatrix(const int32 ViewIndex) const
+{
+    assert(IsViewActive(ViewIndex));
+    const FRect& Rect = ViewRects[ViewIndex];
+    return BuildProjectionMatrix(GetRenderCamera(ViewIndex).Projection, Rect.Width / Rect.Height);
+}

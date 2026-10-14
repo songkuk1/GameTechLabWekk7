@@ -26,6 +26,23 @@ DECLARE_CYCLE_STAT("Upload Per-Object CB", STAT_UploadPerObjectCB);
 
 namespace
 {
+	// UberLit.hlsl b6. 반투명/컬링을 생략한 뷰는 전체 라이트를 사용한다.
+	struct alignas(16) FTileLightInfo
+	{
+		uint32 TileCountX;
+		uint32 bUseTileCulling;
+		uint32 Padding[2]{};
+	};
+	struct alignas(16) FCullingViewConstants
+	{
+		uint32 TileCountX;
+		uint32 TileSize;
+		uint32 MaxLightsPerTile;
+		uint32 bValid;
+		float ViewportOrigin[2];
+		float Padding[2]{};
+	};
+	static_assert(sizeof(FCullingViewConstants) == 32);
 	// VSSetConstantBuffers1의 오프셋은 16개 상수(256바이트) 단위여야 하므로 오브젝트마다 256바이트 칸을 쓴다.
 	constexpr uint32 PerObjectSlotConstants = 16;
 	static_assert(sizeof(FPerObjectConstants) <= ObjectSlotBytes);
@@ -70,9 +87,12 @@ bool FRenderer::Init()
 	// 라이트가 0개여도 t1/t2에 유효한 SRV가 묶이도록 처음부터 만들어 둔다
 	LightCB = RenderCommand::CreateConstantBuffer(sizeof(FLightConstants));
 	CameraCB = RenderCommand::CreateConstantBuffer(sizeof(FCameraConstants));
+	TileCullingCB = RenderCommand::CreateConstantBuffer(sizeof(FTileCullingConstants));
+	TileLightInfoCB = RenderCommand::CreateConstantBuffer(sizeof(FTileLightInfo));
+	CullingViewCB = RenderCommand::CreateConstantBuffer(sizeof(FCullingViewConstants));
+
 	EnsureLightBufferCapacity(PointLightBuffer, 1, sizeof(FPointLightInfo));
 	EnsureLightBufferCapacity(SpotLightBuffer, 1, sizeof(FSpotLightInfo));
-
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
 	return true;
@@ -151,8 +171,9 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
 	//Light Bind
-	BindLights();
+	BindLights(true);
 
+	//
 
 	//이건 사실상 안쓰는 중인듯
 	DrawStaticGroups();
@@ -173,7 +194,7 @@ void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 }
 
 // 스태틱 메시 묶음을 정렬 키 순서로 그린다. 바인딩은 묶음마다 한 번, 항목마다는 칸 바인딩과 드로우만 한다.
-void FRenderer::DrawStaticGroups()
+void FRenderer::DrawStaticGroups(bool bDepthOnly)
 {
 	if (StaticGroups.empty())
 		return;
@@ -188,7 +209,7 @@ void FRenderer::DrawStaticGroups()
 		if (Group->Material != BoundMaterial)
 		{
 			BoundMaterial = Group->Material;
-			BindMaterial(BoundMaterial);
+			BindMaterial(BoundMaterial, bDepthOnly);
 			FRenderPacket MaterialOnly;           // 머티리얼 파라미터 갱신은 패킷을 받으므로 머티리얼만 채워 넘긴다
 			MaterialOnly.Material = BoundMaterial;
 			UpdateMaterialParams(MaterialOnly);
@@ -254,7 +275,7 @@ void FRenderer::RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewPro
 }
 
 // 정렬된 패킷 중 [Begin, End) 범위를 View 행렬과 Section 범위로 그린다.
-void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection)
+void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection, bool bDepthOnly)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DrawRenderPackets);
 
@@ -274,7 +295,7 @@ void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProject
 			RenderCommand::BindMesh(RenderPacket.Mesh, RenderPacket.LODIndex);
 		}
 		if (RenderPacket.Material != LastMaterial) {
-			BindMaterial(RenderPacket.Material);
+			BindMaterial(RenderPacket.Material, bDepthOnly);
 		}
 		if (RenderPacket.Material != LastMaterial || RenderPacket.MaterialParamData)
 			UpdateMaterialParams(RenderPacket);
@@ -470,7 +491,7 @@ void FRenderer::EndObjectConstants()
 }
 
 // Material마다 Shader/Texture/Sampler/State 꽂기
-void FRenderer::BindMaterial(UMaterial* material)
+void FRenderer::BindMaterial(UMaterial* material,bool bDepthOnly)
 {
 	// 머티리얼 에셋은 건드리지 않고, 이번 바인딩에서만 뷰 모드에 맞는 셰이더로 바꿔 끼운다.
 	FShaderProgram* Shader = material->Shader;
@@ -485,7 +506,9 @@ void FRenderer::BindMaterial(UMaterial* material)
 			Shader = ViewModeShader;
 	}
 
+	
 	RenderCommand::BindShaderProgram(Shader);
+	if (bDepthOnly) RenderCommand::GetContext()->PSSetShader(nullptr, nullptr, 0); //LightCulling용
 	RenderCommand::SetBlendState(material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
 	const bool bTranslucent = material->BlendState != EBlendState::Opaque;
@@ -568,6 +591,9 @@ void FRenderer::SetLights(const void* Source, uint32 Version, const FLightConsta
 		return;   // 버퍼에 이미 같은 내용이 올라가 있다
 	LastLightSource = Source;
 	LastLightVersion = Version;
+
+	UploadedPointLightCount = static_cast<uint32>(PointLights.Num()); 
+	UploadedSpotLightCount = static_cast<uint32>(SpotLights.Num());   
 
 	RenderCommand::UpdateBufferData(LightCB.get(), &Constants, sizeof(FLightConstants));
 	UploadLightBuffer(PointLightBuffer, PointLights.GetData(), static_cast<uint32>(PointLights.Num()), sizeof(FPointLightInfo));
@@ -668,8 +694,14 @@ void FRenderer::SetCameraPosition(const FVector& InCameraPosition)
 	RenderCommand::UpdateBufferData(CameraCB.get(), &Constants, sizeof(FCameraConstants));
 }
 
-void FRenderer::BindLights()
+void FRenderer::BindLights(bool bUseTileCulling)
 {
+	const bool bUseTiles = bUseTileCulling && bTileCullingValid;
+	FTileLightInfo TileInfo{CurrentTileCountX, bUseTiles ? 1u : 0u};
+	RenderCommand::UpdateBufferData(TileLightInfoCB.get(), &TileInfo, sizeof(TileInfo));
+	RenderCommand::BindConstantBuffer(6, TileLightInfoCB.get(), EShaderBindFlagBits::Pixel);
+	ID3D11ShaderResourceView* TileSRV = bUseTiles ? TileLightSRV.Get() : nullptr;
+	RenderCommand::GetContext()->PSSetShaderResources(4, 1, &TileSRV);
 	// Gouraud는 VS에서 라이트를 계산하므로 VS에도 묶는다
 	RenderCommand::BindConstantBuffer(4, LightCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 	RenderCommand::BindConstantBuffer(5, CameraCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
@@ -684,3 +716,188 @@ void FRenderer::SetDirectionalLight(const FDirectionalLightConstants& LightData)
 	DirectionalLightData = LightData;
 	RenderCommand::UpdateBufferData(DirectionalLightCB.get(), &DirectionalLightData, sizeof(FDirectionalLightConstants));
 }
+
+
+void FRenderer::RenderDepthOnly(const FMatrix& ViewProjection)
+{
+	RenderCommand::UpdateBufferData(ViewCB.get(), &ViewProjection);
+	DrawStaticGroups(true);
+	DrawPackets(0, FirstTranslucentIndex, ViewProjection,true);
+}
+void FRenderer::LightCulling(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height, FTexture2D* DepthTexture)
+{
+	bTileCullingValid = false;
+	// 0. 셰이더
+	if (!TileCullingShader)
+		TileCullingShader = FRenderResourceManager::GetComputeShader("Resources/Shader/Compute/TileLightCulling.hlsl");
+	if (!TileCullingShader)
+		return;
+	if (!DepthTexture || !DepthTexture->GetSRV() || !TileCullingCB)
+		return;
+	// ① 화면 크기에 맞는 출력 버퍼 용량 확보
+	// 타일 개수 변경 시 재생성 또는 확장
+
+	if (!EnsureTileLightBufferCapacity(Width, Height))
+		return;
+
+	// ② 이번 뷰의 컬링 상수 업로드
+	FTileCullingConstants Constants{};
+	Constants.View = View;
+	Constants.ProjXScale = Projection.M[1][0];
+	Constants.ProjYScale = Projection.M[2][1];
+	Constants.ProjZScale = Projection.M[0][2];
+	Constants.ProjZOffset = Projection.M[3][2];
+	Constants.ScreenWidth = Width;
+	Constants.ScreenHeight = Height;
+	Constants.TileCountX = (Width + TileSize - 1) / TileSize;
+	Constants.TileCountY = (Height + TileSize - 1) / TileSize;
+	Constants.PointLightCount = UploadedPointLightCount;
+	Constants.SpotLightCount = UploadedSpotLightCount;
+	RenderCommand::UpdateBufferData(TileCullingCB.get(), &Constants, sizeof(FTileCullingConstants));
+
+	// ③~⑧ 이후 단계
+	// 
+	// ③ 이전 Opaque 패스가 읽던 '컬링 결과 SRV' 해제
+	// 동일한 버퍼를 이번에는 UAV로 쓰기 때문
+
+	// t3는 노멀맵, 타일 목록은 UberLit의 t4다.
+	RenderCommand::UnbindShaderResource(4, EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
+	// ⑤ 입력 설정
+	//    CSSetConstantBuffers(...)    // 컬링 파라미터, 라이트 개수
+	//    CSSetShaderResources(...)    // Depth, PointLights, SpotLights
+	RenderCommand::CSSetConstantBuffer(0, TileCullingCB.get());
+	ID3D11ShaderResourceView* InputSRVs[] =
+	{
+		DepthTexture->GetSRV(),       // t0
+		PointLightBuffer.SRV.Get(),   // t1
+		SpotLightBuffer.SRV.Get()     // t2
+	};
+	RenderCommand::CSSetShaderResources(0, 3, InputSRVs); // t0부터,연속된 슬룻 3개에, 배열 순서대로 연결
+
+	// ⑥ 출력 설정
+	// 타일 개수, Point/Spot 인덱스
+	RenderCommand::CSSetUnorderedAccessView(0, TileLightUAV.Get());
+
+	// ⑦ 실행
+	DisPatch(Constants.TileCountX, Constants.TileCountY);
+	CurrentTileCountX = Constants.TileCountX;
+	bTileCullingValid = true;
+
+	// ⑧ CS의 출력 UAV, 입력 SRV, Shader 바인딩 해제
+	RenderCommand::CSSetUnorderedAccessView(0, nullptr);
+	ID3D11ShaderResourceView* NullSRVs[3] = {};
+	RenderCommand::CSSetShaderResources(0, 3, NullSRVs);
+	RenderCommand::CSSetConstantBuffer(0, nullptr);
+
+}
+void FRenderer::DisPatch(uint32 TileCountX, uint32 TileCountY)
+{
+	if (!TileCullingShader || TileCountX == 0 || TileCountY == 0)
+		return;
+
+	RenderCommand::CSSetShader(TileCullingShader);
+	RenderCommand::Dispatch(TileCountX, TileCountY, 1);
+	RenderCommand::CSSetShader(nullptr);
+}
+
+void FRenderer::RenderCullingView(const FRenderingInfo& RenderingInfo)
+{
+	if (!CullingViewShader)
+		CullingViewShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/CullingView.hlsl");
+	if (!CullingViewShader || !CullingViewCB || !CullingViewCB->GetBuffer())
+		return;
+	// 첫 뷰가 직교 뷰인 경우에도 유효한 SRV를 제공한다. bValid=0이면 내용은 읽지 않는다.
+	if (!TileLightSRV && !EnsureTileLightBufferCapacity(1, 1))
+		return;
+
+	FCullingViewConstants Constants{CurrentTileCountX, TileSize, MaxLightsPerTile,
+		bTileCullingValid ? 1u : 0u,
+		{static_cast<float>(RenderingInfo.ViewportSetting.StartX), static_cast<float>(RenderingInfo.ViewportSetting.StartY)}};
+	RenderCommand::UpdateBufferData(CullingViewCB.get(), &Constants, sizeof(Constants));
+
+	FRenderingInfo PassInfo = RenderingInfo;
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::DontCare;
+	PassInfo.DepthStencil.Texture = nullptr;
+	RenderCommand::BeginRenderPass(PassInfo);
+	RenderCommand::BindShaderProgram(CullingViewShader);
+	RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	RenderCommand::SetRasterizerState(ERasterizerState::SolidNone);
+	RenderCommand::SetDepthStencilState(EDepthStencilState::Disabled);
+	RenderCommand::SetBlendState(EBlendState::Opaque);
+	RenderCommand::BindConstantBuffer(0, CullingViewCB.get(), EShaderBindFlagBits::Pixel);
+	ID3D11ShaderResourceView* SRV = TileLightSRV.Get();
+	RenderCommand::GetContext()->PSSetShaderResources(0, 1, &SRV);
+	RenderCommand::Draw(3);
+	RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
+	RenderCommand::EndRenderPass(PassInfo);
+	RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
+	RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+}
+
+bool FRenderer::EnsureTileLightBufferCapacity(uint32 Width, uint32 Height)
+{
+	if (Width == 0 || Height == 0)
+		return false;
+
+	// ① 필요한 uint 칸 수 계산
+	// 올림나눗셈 
+	const uint32 TileCountX = (Width + TileSize - 1) / TileSize;
+	const uint32 TileCountY = (Height + TileSize - 1) / TileSize;
+
+	const uint32 RequiredCount =
+		TileCountX * TileCountY * (1 + MaxLightsPerTile);
+
+	// ② 이미 충분한 용량이 있으면 재사용
+	if (RequiredCount <= TileLightCapacity)
+		return true;
+
+	ID3D11Device* Device = RenderCommand::GetDevice();
+
+	// 모두 생성된 뒤 기존 멤버를 교체한다.
+	ComPtr<ID3D11Buffer> NewBuffer;
+	ComPtr<ID3D11UnorderedAccessView> NewUAV;
+	ComPtr<ID3D11ShaderResourceView> NewSRV;
+
+	// ③ 실제 GPU 버퍼 생성
+	D3D11_BUFFER_DESC BufferDesc{};
+	BufferDesc.ByteWidth = RequiredCount * sizeof(uint32);
+	BufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	BufferDesc.BindFlags =
+		D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+	BufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	BufferDesc.StructureByteStride = sizeof(uint32);
+
+	if (FAILED(Device->CreateBuffer(
+		&BufferDesc, nullptr, NewBuffer.GetAddressOf())))
+		return false;
+
+	// ④ CS가 쓸 UAV 생성
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
+	UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	UAVDesc.Buffer.NumElements = RequiredCount;
+
+	if (FAILED(Device->CreateUnorderedAccessView(
+		NewBuffer.Get(), &UAVDesc, NewUAV.GetAddressOf())))
+		return false;
+
+	// ⑤ 이후 셰이더가 읽을 SRV 생성
+	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
+	SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	SRVDesc.Buffer.NumElements = RequiredCount;
+
+	if (FAILED(Device->CreateShaderResourceView(
+		NewBuffer.Get(), &SRVDesc, NewSRV.GetAddressOf())))
+		return false;
+
+	// ⑥ 생성에 성공했으므로 멤버 교체
+	TileLightBuffer = std::move(NewBuffer);
+	TileLightUAV = std::move(NewUAV);
+	TileLightSRV = std::move(NewSRV);
+	TileLightCapacity = RequiredCount;
+
+	return true;
+}
+

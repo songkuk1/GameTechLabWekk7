@@ -22,16 +22,52 @@ void FRenderResourceManager::ScanShaders(const fs::path& ShaderRoot)
 		if (!Entry.is_regular_file()) continue;
 		if (Entry.path().extension() != ".hlsl") continue;
 
-		FString Path = Entry.path().generic_string();
+		const FString Path = Entry.path().generic_string();
+		if (Path.find("/Compute/") != FString::npos)
+		{
+			GetComputeShader(Path);
+			continue;
+		}
+
 		LoadOrCompileShader(Path);
 	}
 }
 
 void FRenderResourceManager::Shutdown()
 {
+	Get().ShaderProgramMap.Empty();
 	Get().VertexShaderMap.Empty();
 	Get().PixelShaderMap.Empty();
-	Get().ShaderProgramMap.Empty();
+	Get().ComputeShaderMap.Empty();
+}
+
+FComputeShader* FRenderResourceManager::GetComputeShader(const FString& InPath, const TArray<FShaderDefine>& Defines)
+{
+	const FString Key = MakeProgramKey(InPath, Defines);
+	auto& Manager = Get();
+	if (auto* Found = Manager.ComputeShaderMap.Find(Key))
+		return Found->get();
+
+	FString CsoPath;
+	FShaderByteCode Code = RenderUtil::GetOrCompile(InPath, "mainCS", EShaderType::Compute, CsoPath, Defines);
+	if (!Code.IsValid())
+	{
+		HTR_LOG(Error, "[Shader] compute compile failed: {}", Key);
+		return nullptr;
+	}
+
+	TUniquePtr<FComputeShader> Shader = RenderCommand::CreateComputeShader(Code);
+	if (!Shader || !Shader->IsValid())
+	{
+		HTR_LOG(Error, "[Shader] compute create failed: {}", Key);
+		return nullptr;
+	}
+
+	// 매니저가 소유하고, 호출자는 재사용할 포인터만 보관한다.
+	FComputeShader* RawShader = Shader.get();
+	Manager.ComputeShaderMap[Key] = std::move(Shader);
+	HTR_LOG(Info, "[Shader] compute loaded: {}", Key);
+	return RawShader;
 }
 
 FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath)

@@ -5,7 +5,19 @@
 
 FShaderByteCode RenderUtil::CompileShader(FString Path, const char* EntryPoint, EShaderType ShaderType, const TArray<FShaderDefine>& Defines)
 {
-	const char* Target = (ShaderType == EShaderType::Vertex) ? "vs_5_0" : "ps_5_0";
+	const char* Target;
+	switch (ShaderType)
+	{
+		case EShaderType::Vertex:
+			Target = "vs_5_0";
+			break;
+		case EShaderType::Pixel:
+			Target = "ps_5_0";
+			break;
+		case EShaderType::Compute:
+			Target = "cs_5_0";
+			break;
+	}
 
 	uint32 Flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
@@ -68,8 +80,19 @@ FShaderByteCode RenderUtil::LoadByteCode(const FString& CsoPath)
 FString RenderUtil::GetCsoPath(const FString& ShaderPath, EShaderType ShaderType, const TArray<FShaderDefine>& Defines)
 {
 	const fs::path Rel = fs::relative(ShaderPath, "Resources/Shader");
-	const char* Suffix = (ShaderType == EShaderType::Vertex) ? "_VS.cso" : "_PS.cso";
-
+	const char* Suffix;
+	switch (ShaderType)
+	{
+	case EShaderType::Vertex:
+		Suffix = "_VS.cso";
+		break;
+	case EShaderType::Pixel:
+		Suffix = "_PS.cso";
+		break;
+	case EShaderType::Compute:
+		Suffix = "_CS.cso";
+		break;
+	}
 	// 예: UberLit__LIGHTING_MODEL_PHONG_VS.cso (값이 "1"이 아니면 _값까지 붙인다)
 	FString VariantName;
 	for (const FShaderDefine& Define : Defines)

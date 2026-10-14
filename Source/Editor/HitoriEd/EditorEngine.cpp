@@ -566,38 +566,34 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 {
 	RenderCommand::BeginRenderPass(ViewRenderingInfo);
 
-	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
+	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
+
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
 	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
 		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
 
-	// 렌더 루프 — 반드시 RenderAll보다 먼저
-	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
-	if (bDrawPrimitives)
-	{
+
 		RenderCommand::SetRasterizerState(SceneRasterizerState);
 		RenderCommand::SetBlendState(EBlendState::Opaque);
 		RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
 
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		//불투명 Draw
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
-		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-	}
+	
 
 
-
-	if (bDrawPrimitives)
-	{
+		//반투명 Draw
 		// Grid 파이프라인이 바꾼 상태를 장면 기준으로 되돌린 뒤 반투명을 먼 것부터 그린다.
 		RenderCommand::SetRasterizerState(SceneRasterizerState);
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		Renderer->RenderTranslucent(ViewProjection);
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-	}
-
+	
 
 
 	RenderCommand::EndRenderPass(ViewRenderingInfo);
@@ -869,6 +865,8 @@ void UEditorEngine::UpdateGizmoAndPicking()
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
 void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
+	// 공유 버퍼에 이전 뷰의 결과가 남아 있어도 현재 뷰에서 재사용하지 않는다.
+	Renderer->ResetLightCulling();
 	
 	ViewWorld.GetScene().UpdateLights(Renderer);
 
@@ -881,14 +879,24 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	Renderer->SetViewMode(static_cast<ERenderViewMode>(MultipleViewportsAdapter.GetViewMode(ViewIndex)));
 	Renderer->SetCameraPosition(ViewCameraLocation);
 
-	// 1. 불투명 Pass
-	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	// 0. 배경 Render
 
-	if (SettingsPanel->GetSettings().bDepthView)
+	// 1. 불투명 Pass
+	if (SettingsPanel->GetSettings().bDrawPrimitives)
+	{
+		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
+		
+		LightCullingPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
+		RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	}
+
+	if (SettingsPanel->GetSettings().bCullingView)
+	{
+		Renderer->RenderCullingView(ViewRenderingInfo);
+	}
+	else if (SettingsPanel->GetSettings().bDepthView)
 	{
 		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
-
-
 	}
 	else
 	{
@@ -905,7 +913,8 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 
 
 	// 4. 오버레이 Pass
-	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	if (!SettingsPanel->GetSettings().bCullingView)
+		RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 
 }
@@ -1190,4 +1199,32 @@ void UEditorEngine::SaveSceneAs()
 		return;
 	}
 	FEditorFileUtils::SaveSceneAs(EditorWorld);
+}
+// Opaque에 대한 Depth 업데이트 및 Tile-based Culling. 우선 Opaque에 대해서만 조명을 적용하는걸 가정함.
+void UEditorEngine::LightCullingPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward)
+{
+	// 1. DepthStencilTexture만 업데이트
+	if (MultipleViewportsAdapter.IsViewWireframe(ViewIndex)) return;
+	if (MultipleViewportsAdapter.IsOrthographic(ViewIndex))  return;   // 타일 상자 계산이 원근 전용
+
+	FTexture2D* DepthTexture = ViewRenderingInfo.DepthStencil.Texture;
+	const uint32 Width = ViewRenderingInfo.ViewportSetting.Width;
+	const uint32 Height = ViewRenderingInfo.ViewportSetting.Height;
+	if (!DepthTexture || Width == 0 || Height == 0) return;
+
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+	PassInfo.ColorRenderTargets.Reset(); //RTV 해제
+	RenderCommand::BeginRenderPass(PassInfo); // RTV=null,DSV=set
+	RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+	RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
+	
+	Renderer->RenderDepthOnly(ViewProjection);
+
+	RenderCommand::EndRenderPass(ViewRenderingInfo);
+
+	// 2. Tile-based Culling
+	Renderer->LightCulling(MultipleViewportsAdapter.GetEngineViewMatrix(ViewIndex),
+		MultipleViewportsAdapter.GetEngineProjectionMatrix(ViewIndex),
+		Width, Height,DepthTexture);
 }
