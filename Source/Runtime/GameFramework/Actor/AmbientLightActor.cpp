@@ -6,7 +6,7 @@
 
 AAmbientLightActor::AAmbientLightActor()
 {
-	SetLightComponent(CreateDefaultSubobject<UPointLightComponent>("UPointLightComponent"));
+	SetLightComponent(CreateDefaultSubobject<UAmbientLightComponent>("UAmbientLightComponent"));
 	SetRootComponent(LightComponent);
 	//UMaterial* BaseMaterial = UAssetManager::GetAssetByPath<UMaterial>("BillboardIconMaterial");
 	//UTexture2D* IconTexture = UAssetManager::Get().LoadTexture(PointLightOffIconPath);
