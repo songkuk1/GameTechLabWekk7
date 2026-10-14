@@ -117,6 +117,23 @@ cbuffer CameraConstants : register(b5)
 StructuredBuffer<PointLightInfo> g_PointLights : register(t1);
 StructuredBuffer<SpotLightInfo> g_SpotLights : register(t2);
 
+// ---- 타일 라이트 컬링 결과 (TileLightCulling.hlsl이 기록한다) ----
+// C++ TileSize / MaxLightsPerTile, TileLightCulling.hlsl의 같은 이름 상수와 값이 같아야 한다
+#define TILE_SIZE           16
+#define MAX_LIGHTS_PER_TILE 1024
+
+cbuffer TileLightInfo : register(b6)
+{
+    uint TileCountX;        // 타일 번호 = y * TileCountX + x
+    uint bUseTileCulling;   // 1: 자기 타일 목록만 순회, 0: 전체 루프
+    uint2 _tilePad;
+};
+
+// 타일마다 [count][통합 라이트 번호 ...]
+// 통합 번호 < PointLightCount 이면 포인트, 아니면 스폿 [번호 - PointLightCount]
+// t3는 노멀맵(g_txNormal)이 쓰므로 t4에 둔다. C++ BindLights·LightCulling의 슬롯 번호와 같아야 한다
+StructuredBuffer<uint> g_TileLightList : register(t4);
+
 float DistanceAtten(float Dist, float Radius, float Falloff)
 {
     return pow(saturate(1.0 - Dist / Radius), Falloff);
@@ -176,7 +193,8 @@ FLightResult CalcSpotLight(SpotLightInfo L, float3 WorldPos, float3 N, float3 V)
 }
 
 
-FLightResult CalcAllLights(float3 WorldPos, float3 N, float3 V)
+// Ambient + Directional: 화면 전체에 닿으므로 타일과 무관하다
+FLightResult CalcAmbientAndDirectional(float3 N, float3 V)
 {
     //Ambient 값 
     FLightResult Result;
@@ -194,16 +212,49 @@ FLightResult CalcAllLights(float3 WorldPos, float3 N, float3 V)
         Result.Specular += R.Specular;
     }
 
-    for (uint i = 0; i < PointLightCount; ++i)
+    return Result;
+}
+
+// 통합 번호 하나를 포인트 또는 스폿으로 풀어 계산한다 (TileLightCulling.hlsl과 같은 규칙)
+// 0 ~ PointLightCount-1 → 포인트, 그 뒤 → 스폿 [번호 - PointLightCount]
+FLightResult CalcLightByIndex(uint LightIndex, float3 WorldPos, float3 N, float3 V)
+{
+    if (LightIndex < PointLightCount)
+        return CalcPointLight(g_PointLights[LightIndex], WorldPos, N, V);
+    return CalcSpotLight(g_SpotLights[LightIndex - PointLightCount], WorldPos, N, V);
+}
+
+// 전체 루프: Gouraud VS, 그리고 타일 결과가 없을 때 (와이어프레임·직교 뷰, 반투명)
+FLightResult CalcAllLights(float3 WorldPos, float3 N, float3 V)
+{
+    FLightResult Result = CalcAmbientAndDirectional(N, V);
+    uint TotalLightCount = PointLightCount + SpotLightCount;
+    for (uint i = 0; i < TotalLightCount; ++i)
     {
-        FLightResult R = CalcPointLight(g_PointLights[i], WorldPos, N, V);
+        FLightResult R = CalcLightByIndex(i, WorldPos, N, V);
         Result.Diffuse += R.Diffuse;
         Result.Specular += R.Specular;
     }
+    return Result;
+}
 
-    for (uint j = 0; j < SpotLightCount; ++j)
+// 타일 경로 (PS 전용): 자기 타일에 닿는 라이트만 순회한다
+// PixelPos = SV_POSITION.xy (픽셀 중심 좌표). 뷰포트 시작점이 (0,0)이라는 전제
+FLightResult CalcTiledLights(float3 WorldPos, float3 N, float3 V, float2 PixelPos)
+{
+    FLightResult Result = CalcAmbientAndDirectional(N, V);
+
+    uint2 Tile = uint2(PixelPos) / TILE_SIZE;                                       // 픽셀 → 타일 좌표
+    uint TileBase = (Tile.y * TileCountX + Tile.x) * (MAX_LIGHTS_PER_TILE + 1);   // CS와 같은 주소 계산
+    uint Count = min(g_TileLightList[TileBase], MAX_LIGHTS_PER_TILE);             // [타일][0] = 개수. 쓰레기 값이어도 루프가 폭주하지 않게 자른다
+
+    // 용량에 도달한 타일은 전체 루프로 돌아가 조명이 누락되지 않게 한다.
+    if (Count == MAX_LIGHTS_PER_TILE)
+        return CalcAllLights(WorldPos, N, V);
+
+    for (uint k = 0; k < Count; ++k)
     {
-        FLightResult R = CalcSpotLight(g_SpotLights[j], WorldPos, N, V);
+        FLightResult R = CalcLightByIndex(g_TileLightList[TileBase + 1 + k], WorldPos, N, V);
         Result.Diffuse += R.Diffuse;
         Result.Specular += R.Specular;
     }
@@ -246,7 +297,11 @@ float4 mainPS(PSInput Input) : SV_Target
 #elif LIGHTING_MODEL_LAMBERT || LIGHTING_MODEL_PHONG
     float3 N = GetWorldNormal(Input.Normal, Input.Tangent, Input.UV + UVOffset);
     float3 V = normalize(CameraPosition - Input.worldPos);
-    FLightResult Light = CalcAllLights(Input.worldPos, N, V);   // Lambert면 Specular는 0
+    FLightResult Light;
+    if (bUseTileCulling != 0)
+        Light = CalcTiledLights(Input.worldPos, N, V, Input.Position.xy);   // 자기 타일 목록만 순회
+    else
+        Light = CalcAllLights(Input.worldPos, N, V);   // Lambert면 Specular는 0
     // 스페큘러는 표면색을 곱하지 않는다
     FinalRGB = Albedo.rgb * Light.Diffuse + Light.Specular;
 #endif

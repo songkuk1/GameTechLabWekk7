@@ -23,6 +23,7 @@ struct FSortEntry
 
 class UCameraComponent;
 class FShaderProgram;
+class FComputeShader;
 
 // 뷰 모드에 따라 BindMaterial이 머티리얼 셰이더를 갈아 끼운다.
 // 에디터의 EMultipleViewPortsViewMode와 값 순서를 맞춘다.
@@ -129,7 +130,21 @@ struct alignas(16) FDirectionalLightConstants
 	uint32 LightCount;
 	uint32 Padding[3] = {};
 };
-
+struct alignas(16) FTileCullingConstants
+{
+	FMatrix View;              // 라이트 중심을 월드 → 뷰 공간으로 옮긴다
+	float  ProjXScale;         // Projection.M[1][0]  타일 좌우 면
+	float  ProjYScale;         // Projection.M[2][1]  타일 위아래 면
+	float  ProjZScale;         // Projection.M[0][2]  깊이 버퍼 값 → 뷰 깊이
+	float  ProjZOffset;        // Projection.M[3][2]  〃
+	uint32 ScreenWidth;
+	uint32 ScreenHeight;
+	uint32 TileCountX;
+	uint32 TileCountY;
+	uint32 PointLightCount;
+	uint32 SpotLightCount;
+	uint32 Padding[2] = {};
+};
 class FRenderer
 {
 public:
@@ -157,6 +172,14 @@ public:
 
 	// 큐를 Material, Opaque, Mesh에 따라 정렬한다
 	void RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewProjection);
+
+	// Depth만 그림
+	void RenderDepthOnly(const FMatrix& ViewProjection);
+	//ComputeShader Culling용
+	void LightCulling(const FMatrix& View, const FMatrix& Projection, uint32 Width, uint32 Height, FTexture2D* DepthTexture);
+	void DisPatch(uint32 TileCountX, uint32 TileCountY);
+	void ResetLightCulling() { bTileCullingValid = false; }
+	void RenderCullingView(const FRenderingInfo& RenderingInfo);
 
 	// [측정 전용] RenderOpaque 직후에 호출한다. 불투명 패킷을 깊이 LESS_EQUAL·색 쓰기 없이 다시 그리며
 	// 패킷마다 오클루전 쿼리를 걸어, 최종 화면에 실제로 픽셀을 남긴 물체 수를 센다.
@@ -200,13 +223,13 @@ private:
 
 	FGPUOcclusion GPUOcclusion;
 
-	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
-	void DrawStaticGroups();
+	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection,bool bDepthOnly=false);
+	void DrawStaticGroups(bool bDepthOnly = false);
 	void UpdatePerObjectConstants(const FMatrix& World);
 
 	// 이번 프레임 스태틱 메시 묶음 (정렬 키 순). 비어 있지 않은 것만 담는다.
 	std::vector<const FStaticDrawGroup*> StaticGroups;
-	void BindMaterial(UMaterial* material);
+	void BindMaterial(UMaterial* material, bool bDepthOnly = false);
 	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
 	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
 	void EnsurePerObjectSlotCapacity(uint32 SlotCount);
@@ -228,10 +251,16 @@ private:
 	bool EnsureLightBufferCapacity(FLightStructuredBuffer& Target, uint32 Count, uint32 Stride);
 	void UploadLightBuffer(FLightStructuredBuffer& Target, const void* Data, uint32 Count, uint32 Stride);
 	// 불투명/반투명 패스 시작 시 VS/PS에 b4(라이트), b5(카메라), t1/t2(Point/Spot)를 묶는다.
-	void BindLights();
+	void BindLights(bool bUseTileCulling = false);
 
 	// 라이트 버퍼(SetLights)와 달리 뷰마다 값이 달라 캐시 없이 매번 올린다.
 	TUniquePtr<FConstantBuffer> CameraCB;
+	TUniquePtr<FConstantBuffer> TileCullingCB;
+	TUniquePtr<FConstantBuffer> TileLightInfoCB;
+	TUniquePtr<FConstantBuffer> CullingViewCB;
+	FShaderProgram* CullingViewShader = nullptr;
+	bool bTileCullingValid = false;
+	uint32 CurrentTileCountX = 0;
 
 	ERenderViewMode ViewMode = ERenderViewMode::Lit_Gouraud;
 
@@ -242,4 +271,22 @@ private:
 	FShaderProgram* StaticMeshShader = nullptr;
 	// 인덱스 = ERenderViewMode. Unlit 칸은 비워 두고 머티리얼 셰이더(StaticMeshShader)를 그대로 쓴다.
 	FShaderProgram* ViewModeShaders[static_cast<uint32>(ERenderViewMode::Count)] = {};
+
+	//LightCulling에 필요한 Tile수
+	static constexpr uint32 TileSize = 16;
+	static constexpr uint32 MaxLightsPerTile = 1024;
+
+	// 셰이더 객체는 FRenderResourceManager가 소유한다.
+	FComputeShader* TileCullingShader = nullptr;
+
+	ComPtr<ID3D11Buffer> TileLightBuffer;
+	ComPtr<ID3D11UnorderedAccessView> TileLightUAV;
+	ComPtr<ID3D11ShaderResourceView> TileLightSRV;
+	uint32 UploadedPointLightCount = 0;
+	uint32 UploadedSpotLightCount = 0;
+
+	// 타일 수가 아니라, 버퍼에 들어가는 uint 칸의 개수
+	uint32 TileLightCapacity = 0;
+
+	bool EnsureTileLightBufferCapacity(uint32 Width, uint32 Height);
 };

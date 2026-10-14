@@ -22,7 +22,7 @@ public:
 	static void Shutdown();
 
 	static FShaderProgram* GetShaderProgram(const FString& InPath);
-
+	static FComputeShader* GetComputeShader(const FString& InPath, const TArray<FShaderDefine>& Defines = {});
 	// 매크로 변형을 찾는다. ScanShaders는 기본 변형만 만들므로, 처음 요청받을 때 컴파일해 둔다.
 	// 컴파일에 실패하면 DefaultShader로 대체하지 않고 nullptr을 돌려준다.
 	static FShaderProgram* GetShaderProgram(const FString& InPath, const TArray<FShaderDefine>& Defines);
@@ -33,5 +33,6 @@ private:
 
 	TMap<FString, TUniquePtr<FVertexShader>> VertexShaderMap;
 	TMap<FString, TUniquePtr<FPixelShader>>  PixelShaderMap;
+	TMap<FString, TUniquePtr<FComputeShader>>  ComputeShaderMap;
 	TMap<FString, TUniquePtr<FShaderProgram>> ShaderProgramMap;
 }; 

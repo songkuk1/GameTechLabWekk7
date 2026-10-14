@@ -44,6 +44,29 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("Show Object UUID", &Settings.bShowUUID);
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
+	ImGui::Checkbox("Culling View", &Settings.bCullingView);
+	if (Settings.bCullingView)
+	{
+		ImGui::TextWrapped("Tile light counts (Point + Spot), 16 x 16 pixels.");
+		ImGui::TextWrapped("0: dark | 1: blue | 4: cyan | 8: green | 16: yellow | 32+: red");
+		ImGui::TextWrapped("Magenta: capacity reached (1024). Orange stripes: no culling result.");
+		ImGui::TextWrapped("Use a solid Perspective view with Draw Primitives enabled. Spot lights use a bounding sphere.");
+		if (ViewportAdapter && ImGui::Button("Frame Culling Test"))
+		{
+			const int32 Index = ViewportAdapter->GetEditorViewIndex();
+			FViewCamera Camera = ViewportAdapter->GetViewCamera(Index);
+			Camera.Transform.Location = {-18.0f, 0.0f, 14.0f};
+			Camera.Transform.Rotation = FQuat::MakeFromAxisAngle(FVector(0, 1, 0), 0.52f);
+			Camera.Projection.Mode = EProjectionMode::Perspective;
+			Camera.Projection.FovDegrees = 60.0f;
+			Camera.Projection.NearClip = 0.1f;
+			Camera.Projection.FarClip = 200.0f;
+			ViewportAdapter->SetViewCamera(Index, Camera);
+			ViewportAdapter->SetViewWireframe(Index, false);
+			ViewportAdapter->SetViewMode(Index, EMultipleViewPortsViewMode::Lit_Phong);
+			Settings.bDrawPrimitives = true;
+		}
+	}
 	ImGui::Checkbox("Exponential Height Fog", &Settings.bExponentialHeightFog);
 	//////////////////////////////////////////////////////////
 
