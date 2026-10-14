@@ -446,7 +446,6 @@ void FScene::RemoveAllLights()
 void FScene::MarkLightDirty(FLightSceneProxy* Proxy)
 {
 	if (!Proxy || Proxy->bQueuedForUpdate) return;   // 중복 추가 방지
-	LightProxies.Add(Proxy);
 	Proxy->bQueuedForUpdate = true;
 	DirtyLightProxies.Add(Proxy);
 }
