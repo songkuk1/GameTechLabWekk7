@@ -6,7 +6,7 @@
 // 전방 선언만으로는 C4150(소멸자 미호출)이 되어 액터가 GUObjectArray에 남는다.
 #include "GameFramework/Actor.h"
 #include "Component/ExponentialHeightFogComponent.h"
-
+#include "Component/LightComponent.h"
 void ULevel::AddActor(AActor* Actor)
 {
 	if (!Actor)
@@ -71,6 +71,7 @@ void ULevel::Serialize(FStructuredArchive::FRecord Record)
 			FString ClassName = Actor->GetClass()->Name;
 			ActorRecord << SA_VALUE("Class", ClassName);
 			Actor->Serialize(ActorRecord);
+			
 		}
 		return;
 	}
@@ -102,6 +103,9 @@ void ULevel::Serialize(FStructuredArchive::FRecord Record)
 			for (UActorComponent* Component : Actor->GetComponents())
 				if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
 					OwningWorld->GetScene().UpdateFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+				else if (ULightComponent* Light = Cast<ULightComponent>(Component))
+					Light->MarkLightDirty();
+
 		}
 	}
 }
