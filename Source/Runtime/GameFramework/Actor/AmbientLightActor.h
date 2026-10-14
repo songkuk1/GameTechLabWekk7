@@ -7,7 +7,7 @@ class UAmbientLightComponent;
 
 class AAmbientLightActor final : public ALightActor
 {
-	DECLARE_CLASS(AAmbientLightActor, AActor)
+	DECLARE_CLASS(AAmbientLightActor, ALightActor)
 
 
 public:
