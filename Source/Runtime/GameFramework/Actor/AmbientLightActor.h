@@ -16,5 +16,9 @@ public:
 
 	AAmbientLightActor(const AAmbientLightActor&) = delete;
 	AAmbientLightActor& operator=(const AAmbientLightActor&) = delete;
-
+private:
+	const FString AmbientLightOnIconPath =
+		"Assets/Icons/Component/AmbientLightOnfIcon.png";
+	const FString AmbientLightOfffIconPath =
+		"Assets/Icons/Component/AmbientLightOfffIcon.png";
 };

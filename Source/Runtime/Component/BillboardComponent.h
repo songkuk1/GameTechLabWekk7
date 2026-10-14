@@ -10,7 +10,7 @@ class UBillboardComponent : public UPrimitiveComponent
 		REFLECT_END()
 
 public:
-	// true면 에디터 월드에서만 그린다
+	// true면 장면 패스에서 빠지고 에디터 오버레이 패스(그리드 다음)에서만 그려진다
 	bool bEditorOnly = true;
 
 	UBillboardComponent();
@@ -34,6 +34,9 @@ public:
 	virtual void SubmitToRenderQueue(FRenderQueue& RenderQueue) override;
 	// View별 Adapter가 계산한 Billboard 행렬을 사용해 같은 렌더 패킷 형식으로 제출한다.
 	void SubmitToRenderQueue(FRenderQueue& RenderQueue, const FMatrix& BillboardWorldMatrix);
+	// 에디터 오버레이 패스가 bEditorOnly 아이콘을 그릴 때 쓴다.
+	// 반투명은 카메라 거리로 먼 것부터 정렬되므로 거리 제곱을 함께 넘긴다
+	void SubmitEditorIcon(FRenderQueue& RenderQueue, const FMatrix& BillboardWorldMatrix, float CameraDistanceSquared = 0.0f);
 
 	virtual void Serialize(json& Handle, bool bIsLoading) override;
 
