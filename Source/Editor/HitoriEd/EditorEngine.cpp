@@ -914,7 +914,9 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 	{
 		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
 		
-		LightCullingPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
+		// OFF면 타일 결과를 무효 상태로 유지해 전체 라이트를 순회한다.
+		if (SettingsPanel->GetSettings().bEnableLightCulling)
+			LightCullingPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
 		RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 	}
 
