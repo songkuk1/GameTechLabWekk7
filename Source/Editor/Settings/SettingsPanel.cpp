@@ -44,9 +44,11 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("Show Object UUID", &Settings.bShowUUID);
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
-	ImGui::Checkbox("Culling View", &Settings.bCullingView);
+	ImGui::Checkbox("Light Culling", &Settings.bEnableLightCulling);
 	if (Settings.bCullingView)
 	{
+		if (!Settings.bEnableLightCulling)
+			ImGui::TextWrapped("Light Culling is disabled. Enable it to display tile light counts.");
 		ImGui::TextWrapped("Tile light counts (Point + Spot), 16 x 16 pixels.");
 		ImGui::TextWrapped("0: dark | 1: blue | 4: cyan | 8: green | 16: yellow | 32+: red");
 		ImGui::TextWrapped("Magenta: capacity reached (1024). Orange stripes: no culling result.");
@@ -143,6 +145,7 @@ bool FSettingsPanel::SaveSettings() const
 	File << "DrawBatchLine=" << Settings.bDrawBatchLine << "\n";
 	File << "DrawPSGrid=" << Settings.bDrawPSGrid << "\n";
 	File << "EnableFXAA=" << Settings.bEnableFXAA << "\n";
+	File << "EnableLightCulling=" << Settings.bEnableLightCulling << "\n";
 	File << "\n";
 
 	File << "[Editor]\n";
@@ -264,6 +267,7 @@ bool FSettingsPanel::LoadSettings()
 				else if (Key == "DrawBatchLine") Settings.bDrawBatchLine = std::stoi(ValueStr);
 				else if (Key == "DrawPSGrid") Settings.bDrawPSGrid = std::stoi(ValueStr);
 				else if (Key == "EnableFXAA") Settings.bEnableFXAA = std::stoi(ValueStr);
+				else if (Key == "EnableLightCulling") Settings.bEnableLightCulling = std::stoi(ValueStr);
 
 				else if (Key == "CameraMoveSpeed") Settings.CameraSpeed = std::stof(ValueStr);
 				else if (Key == "CameraRotateSensitivity") Settings.MouseSensitivity = std::stof(ValueStr);
