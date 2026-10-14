@@ -120,6 +120,7 @@ void UAssetManager::Init(const FAssetLoadProgress& OnProgress)
 	Get().ScanAssets("Assets", OnProgress);
 	Get().CreateDefaultMeshes();
 	Get().CreateParticleMaterial();
+	Get().CreateBillboardIconMaterial();
 }
 
 void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgress& OnProgress)
@@ -301,6 +302,17 @@ void UAssetManager::CreateParticleMaterial()
 	ParticleMat->ParamLayout = EMaterialParamLayout::ParticleSubUV;
 	ParticleMat->ParamBuffer = RenderCommand::CreateConstantBuffer(256);
 	RegisterAsset("SubUVMaterial", ParticleMat);
+}
+
+void UAssetManager::CreateBillboardIconMaterial()
+{
+	UMaterial* IconMat = NewObject<UMaterial>();
+	IconMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/BillboardIcon.hlsl");
+	IconMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));   // 아이콘을 지정하지 않았을 때 기본값
+	IconMat->BlendState = EBlendState::AlphaBlend;
+	IconMat->DepthStencilState = EDepthStencilState::ReadOnly;
+	IconMat->ParamLayout = EMaterialParamLayout::None;                 
+	RegisterAsset("BillboardIconMaterial", IconMat);
 }
 
 void UAssetManager::Shutdown()

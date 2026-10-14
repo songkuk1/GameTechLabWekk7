@@ -18,6 +18,11 @@ public:
 	ULightComponent* GetLightComponent() const { return LightComponent; }
 	void SetLightComponent(ULightComponent* InLightComponent) { LightComponent = InLightComponent; }
 
+	// 아이콘 텍스처를 Off(기본)/On(선택) 두 장으로 지정하고 빌보드에 Off를 끼운다
+	void SetIconTextures(const FString& OffIconPath, const FString& OnIconPath);
+	// 에디터 선택 여부에 따라 빌보드 아이콘을 On/Off로 바꾼다
+	void SetIconSelected(bool bSelected);
+
 public:
 	ALightActor();
 	virtual ~ALightActor() override = default;
@@ -26,4 +31,8 @@ public:
 	UBillboardComponent* BillboardComponent = nullptr;
 
 	ULightComponent* LightComponent = nullptr;
+
+private:
+	UMaterial* OffIconMaterial = nullptr;
+	UMaterial* OnIconMaterial = nullptr;
 };

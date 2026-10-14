@@ -27,7 +27,10 @@ UParticleSubUVComponent::UParticleSubUVComponent()
 	// AtlasTexture = nullptr;
 
 	//Shader = RenderCommand::CreateShader(L"Resources/Shader/ParticleSubUVShader.hlsl", FParticleVertex::GetLayout());
-	//Material = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");	
+	// 부모(Billboard)의 기본값은 아이콘 머티리얼이므로 아틀라스 머티리얼로 교체한다
+	Material = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");
+	// 파티클은 게임(PIE)에서도 보여야 한다
+	bEditorOnly = false;
 }
 
 // 파티클 에셋과 배열을 준비하고 초기 상태를 채운다.

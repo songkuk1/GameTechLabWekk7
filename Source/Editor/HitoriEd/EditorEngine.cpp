@@ -164,6 +164,13 @@ bool UEditorEngine::Init()
 			Gizmo->SetTarget(Root, true);
 			DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
 
+			// 선택된 라이트만 On 아이콘, 나머지는 Off 아이콘으로 돌린다
+			// (이전 선택 포인터를 들고 있으면 씬 교체 후 해제된 액터를 건드릴 수 있어 매번 전체를 훑는다)
+			AActor* SelectedActor = Root ? Root->GetOwner() : nullptr;
+			for (AActor* Actor : GetActiveWorld()->GetPersistentLevel()->GetActors())
+				if (ALightActor* LightActor = Cast<ALightActor>(Actor))
+					LightActor->SetIconSelected(LightActor == SelectedActor);
+
 			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
 			if (!Primitive && Root && Root->GetOwner())
 			{
