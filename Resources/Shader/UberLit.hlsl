@@ -42,6 +42,32 @@ Texture2D g_txNormal : register(t3);
 
 SamplerState g_Sample : register(s0);
 
+float3 GetWorldNormal(float3 Normal, float4 Tangent, float2 UV)
+{
+    float3 N = normalize(Normal);
+    uint Width, Height;
+    g_txNormal.GetDimensions(Width, Height);
+    if (Width == 0 || Height == 0)
+        return N;
+
+    float3 T = Tangent.xyz - N * dot(N, Tangent.xyz);
+    float TangentLengthSq = dot(T, T);
+    // UV가 없거나 퇴화해 유효한 탄젠트가 없으면 정점 노멀을 유지한다.
+    if (!(TangentLengthSq > 0.000001f))
+        return N;
+    T *= rsqrt(TangentLengthSq);
+    float S = Tangent.w < 0.0f ? -1.0f : 1.0f;
+    float3 B = cross(N, T) * S;
+
+#if LIGHTING_MODEL_GOURAUD
+    // Gouraud는 정점에서 노멀맵과 조명을 계산한다.
+    float3 NormalTS = g_txNormal.SampleLevel(g_Sample, UV, 0).rgb * 2.0f - 1.0f;
+#else
+    float3 NormalTS = g_txNormal.Sample(g_Sample, UV).rgb * 2.0f - 1.0f;
+#endif
+    return normalize(NormalTS.x * T + NormalTS.y * B + NormalTS.z * N);
+}
+
 struct AmbientLightInfo
 {
     float4 ColorIntensity;
@@ -199,7 +225,8 @@ PSInput mainVS(VSInput Input)
 #if LIGHTING_MODEL_GOURAUD
     // 정점에서는 라이팅만 계산해 넘기고, 텍스처 색은 PS에서 곱한다 (Gouraud는 Specular가 없다)
     float3 V = normalize(CameraPosition - WorldPos.xyz);
-    FLightResult Light = CalcAllLights(WorldPos.xyz, WorldN, V);
+    float3 N = GetWorldNormal(WorldN, Out.Tangent, Out.UV + UVOffset);
+    FLightResult Light = CalcAllLights(WorldPos.xyz, N, V);
     Out.Color    = float4(Light.Diffuse, 1.0f);
 #else
     Out.Color = Input.Color; // Lambert/Phong은 PS에서 계산
@@ -213,17 +240,11 @@ float4 mainPS(PSInput Input) : SV_Target
     float4 Albedo = g_txColor.Sample(g_Sample, Input.UV + UVOffset) * BaseColor;
     float3 FinalRGB = Albedo.rgb;
    
-    float3 normalTS = g_txNormal.Sample(g_Sample, Input.UV + UVOffset).rgb * 2.0f - 1.0f;
-
 #if LIGHTING_MODEL_GOURAUD
     // VS가 보간해 준 라이팅
     FinalRGB = Albedo.rgb * Input.Color.rgb;
 #elif LIGHTING_MODEL_LAMBERT || LIGHTING_MODEL_PHONG
-    float3 N = normalize(Input.Normal);
-    float3 T = normalize(Input.Tangent.xyz - N * dot(N, Input.Tangent.xyz));
-    float S = Input.Tangent.w < 0.0f ? -1.0f : 1.0f;
-    float3 B = cross(N, T) * S;
-    N = normalize(normalTS.x * T+ normalTS.y * B+ normalTS.z * N);
+    float3 N = GetWorldNormal(Input.Normal, Input.Tangent, Input.UV + UVOffset);
     float3 V = normalize(CameraPosition - Input.worldPos);
     FLightResult Light = CalcAllLights(Input.worldPos, N, V);   // Lambert면 Specular는 0
     // 스페큘러는 표면색을 곱하지 않는다

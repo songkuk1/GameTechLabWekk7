@@ -85,9 +85,11 @@ namespace
 
 				if (Texture)
 				{
-					Material->Textures[0] = Texture;
+					Material->SetTexture(UMaterial::ColorTextureSlot, Texture);
 				}
 			}
+			Material->SetTexture(UMaterial::NormalTextureSlot, Slot.NormalTexturePath.empty()
+				? nullptr : UAssetManager::Get().LoadTexture(Slot.NormalTexturePath));
 			Mesh->Materials.Add(Material);
 		}
 
@@ -280,7 +282,8 @@ void UAssetManager::CreateDefaultMaterial()
 {
 	UMaterial* DefaultMat = NewObject<UMaterial>();
 	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/Unlit.hlsl");
-	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
+	DefaultMat->SetTexture(UMaterial::ColorTextureSlot, GetAssetByPath<UTexture2D>("WhiteTexture"));
+	DefaultMat->SetTexture(UMaterial::NormalTextureSlot, nullptr);
 
 
 	DefaultMat->ParamLayout = EMaterialParamLayout::StaticMesh;

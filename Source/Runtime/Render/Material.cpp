@@ -22,6 +22,21 @@ namespace
 	}
 }
 
+UTexture2D* UMaterial::GetTexture(int32 SlotIndex) const
+{
+	return SlotIndex >= 0 && SlotIndex < Textures.Num() ? Textures[SlotIndex] : nullptr;
+}
+
+void UMaterial::SetTexture(int32 SlotIndex, UTexture2D* Texture)
+{
+	if (SlotIndex < 0)
+		return;
+
+	while (Textures.Num() <= SlotIndex)
+		Textures.Add(nullptr);
+	Textures[SlotIndex] = Texture;
+}
+
 UMaterial* UMaterial::CreateInstance(const UMaterial* Source)
 {
 	if (Source == nullptr)
