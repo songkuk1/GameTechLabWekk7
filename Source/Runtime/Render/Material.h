@@ -28,12 +28,20 @@ class UMaterial : public UMaterialInterface
 	DECLARE_CLASS(UMaterial, UMaterialInterface)
 
 public:
+	// 스태틱 메시 텍스처의 역할. GPU 슬롯은 렌더러에서 각각 t0, t3에 연결한다.
+	static constexpr int32 ColorTextureSlot = 0;
+	static constexpr int32 NormalTextureSlot = 1;
+
 	UMaterial() :SortID(NextSortID++) {};
 	virtual ~UMaterial() override = default;
 
 	EMaterialParamLayout ParamLayout = EMaterialParamLayout::None;
 	FShaderProgram* Shader;
 	TArray<UTexture2D*> Textures;
+
+	UTexture2D* GetTexture(int32 SlotIndex) const;
+	void SetTexture(int32 SlotIndex, UTexture2D* Texture);
+
 	TUniquePtr<FConstantBuffer> ParamBuffer;
 	EBlendState BlendState = EBlendState::Opaque;
 	EDepthStencilState DepthStencilState = EDepthStencilState::Default;

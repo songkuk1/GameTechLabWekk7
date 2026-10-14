@@ -5,6 +5,14 @@
 
 ADirectionalLightActor::ADirectionalLightActor()
 {
+	SetLightComponent(CreateDefaultSubobject<UDirectionalLightComponent>("UDirectionalLightComponent"));
+	SetRootComponent(LightComponent);
+	SetIconTextures(UnHighLightedDirectionalLightIconPath, HighLightedDirectionalLightOnPath);
+
+	BillboardComponent->SetupAttachment(GetRootComponent());
+	//빌보드 컴포넌트가 detail 패널에 안보이게함
+	BillboardComponent->SetHiddenInDetails(true);
+
 
 	DirectionArrow = CreateDefaultSubobject<UStaticMeshComponent>("UStaticMeshComponent");
 	DirectionArrow->SetStaticMesh(UAssetManager::GetAssetByPath<UStaticMesh>("Arrow"));
@@ -12,22 +20,5 @@ ADirectionalLightActor::ADirectionalLightActor()
 	DirectionArrow->SetRelativeScale3D({ 0.2f, 0.2f, 0.5f });
 	DirectionArrow->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
 
-	Icon = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
 
-	UMaterial* BaseMaterial = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");
-	UTexture2D* IconTexture = UAssetManager::Get().LoadTexture(UnHighLightedDirectionalLightIconPath);
-	UMaterial* IconMaterial = UMaterial::CreateInstance(BaseMaterial);
-
-	if (IconMaterial && IconTexture)
-	{
-		IconMaterial->Textures.Reset();
-		IconMaterial->Textures.Add(IconTexture);
-		Icon->SetMaterial(0, IconMaterial);
-	}
-
-	Icon->SetupAttachment(GetRootComponent());
-	Icon->SetRelativeScale3D({1.0f,0.5f,0.5f });
-
-	DirectLight = CreateDefaultSubobject<UDirectionalLightComponent>("UDirectionalLightComponent");
-	DirectLight->SetupAttachment(GetRootComponent());
 }

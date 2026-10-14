@@ -14,4 +14,10 @@ class ASpotLightActor : public ALightActor
 public:
 	ASpotLightActor();
 	virtual ~ASpotLightActor() override = default;
+
+private:
+	const FString SpotLightOffIconPath =
+		"Assets/Icons/Component/SpotLightOfffIcon.png";
+	const FString SpotLightOnIconPath =
+		"Assets/Icons/Component/SpotLightOnfIcon.png";
 };

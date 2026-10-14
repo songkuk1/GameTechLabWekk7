@@ -1,11 +1,11 @@
 #pragma once
-#include "GameFramework/Actor.h"
+#include "GameFramework/Actor/LightActor.h"
 
 
 class UBillboardComponent;
 class UAmbientLightComponent;
 
-class AAmbientLightActor final : public AActor
+class AAmbientLightActor final : public ALightActor
 {
 	DECLARE_CLASS(AAmbientLightActor, AActor)
 
@@ -16,14 +16,5 @@ public:
 
 	AAmbientLightActor(const AAmbientLightActor&) = delete;
 	AAmbientLightActor& operator=(const AAmbientLightActor&) = delete;
-
-	UBillboardComponent* GetBillboardComponent() const { return BillboardComponent; }
-	UAmbientLightComponent* GetExponentialHeightFogComponent() const { return AmbientLightComponent; }
-
-private:
-	UAmbientLightComponent* AmbientLightComponent = nullptr;
-	UBillboardComponent* BillboardComponent = nullptr;
-
-
 
 };

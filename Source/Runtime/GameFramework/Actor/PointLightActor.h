@@ -14,4 +14,10 @@ class APointLightActor : public ALightActor
 public:
 	APointLightActor();
 	virtual ~APointLightActor() override = default;
+
+private:
+	const FString PointLightOffIconPath =
+		"Assets/Icons/Component/PointLightOffIcon.png";
+	const FString PointLightOnPath =
+		"Assets/Icons/Component/PointLightOnIcon.png";
 };

@@ -492,12 +492,20 @@ void FRenderer::BindMaterial(UMaterial* material)
 	RenderCommand::SetDepthStencilState(bTranslucent && material->DepthStencilState == EDepthStencilState::Default
 		? EDepthStencilState::ReadOnly : material->DepthStencilState);
 
-	for (int i = 0; i < material->Textures.size(); i++)
+	const bool bStaticMesh = material->ParamLayout == EMaterialParamLayout::StaticMesh;
+	if (bStaticMesh)
 	{
-		RenderCommand::BindShaderResource(i, material->Textures[i], EShaderBindFlagBits::Pixel);
+		RenderCommand::BindShaderResource(0, material->GetTexture(UMaterial::ColorTextureSlot), EShaderBindFlagBits::Pixel);
+		// t1/t2는 라이트 버퍼다. 노멀맵은 t3에 연결하고, 없으면 이전 바인딩을 비운다.
+		RenderCommand::BindShaderResource(3, material->GetTexture(UMaterial::NormalTextureSlot), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 	}
-	if (auto* Normal = UAssetManager::Get().LoadTexture("Assets/normalmap.png")) RenderCommand::BindShaderResource(3, Normal, EShaderBindFlagBits::Pixel);
-	RenderCommand::BindSamplerState(0, material->SamplerState, EShaderBindFlagBits::Pixel);
+	else
+	{
+		for (int i = 0; i < material->Textures.size(); i++)
+			RenderCommand::BindShaderResource(i, material->Textures[i], EShaderBindFlagBits::Pixel);
+	}
+	RenderCommand::BindSamplerState(0, material->SamplerState, bStaticMesh
+		? EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel : EShaderBindFlagBits::Pixel);
 }
 
 // b1 내용 채우고 꽂기
@@ -517,7 +525,7 @@ void FRenderer::UpdateMaterialParams(const FRenderPacket& RenderPacket)
 		Params.bOpaque = RenderPacket.Material->BlendState == EBlendState::Opaque ? 1.0f : 0.0f;
 
 		RenderCommand::UpdateBufferData(RenderPacket.Material->ParamBuffer.get(), &Params, sizeof(FStaticMeshMaterialParams));
-		RenderCommand::BindConstantBuffer(1, RenderPacket.Material->ParamBuffer.get(), EShaderBindFlagBits::Pixel);
+		RenderCommand::BindConstantBuffer(1, RenderPacket.Material->ParamBuffer.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 		break;
 	}
 	case EMaterialParamLayout::ParticleSubUV:

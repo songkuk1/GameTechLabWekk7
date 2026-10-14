@@ -85,9 +85,11 @@ namespace
 
 				if (Texture)
 				{
-					Material->Textures[0] = Texture;
+					Material->SetTexture(UMaterial::ColorTextureSlot, Texture);
 				}
 			}
+			Material->SetTexture(UMaterial::NormalTextureSlot, Slot.NormalTexturePath.empty()
+				? nullptr : UAssetManager::Get().LoadTexture(Slot.NormalTexturePath));
 			Mesh->Materials.Add(Material);
 		}
 
@@ -118,6 +120,7 @@ void UAssetManager::Init(const FAssetLoadProgress& OnProgress)
 	Get().ScanAssets("Assets", OnProgress);
 	Get().CreateDefaultMeshes();
 	Get().CreateParticleMaterial();
+	Get().CreateBillboardIconMaterial();
 }
 
 void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgress& OnProgress)
@@ -280,7 +283,8 @@ void UAssetManager::CreateDefaultMaterial()
 {
 	UMaterial* DefaultMat = NewObject<UMaterial>();
 	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/Unlit.hlsl");
-	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
+	DefaultMat->SetTexture(UMaterial::ColorTextureSlot, GetAssetByPath<UTexture2D>("WhiteTexture"));
+	DefaultMat->SetTexture(UMaterial::NormalTextureSlot, nullptr);
 
 
 	DefaultMat->ParamLayout = EMaterialParamLayout::StaticMesh;
@@ -298,6 +302,17 @@ void UAssetManager::CreateParticleMaterial()
 	ParticleMat->ParamLayout = EMaterialParamLayout::ParticleSubUV;
 	ParticleMat->ParamBuffer = RenderCommand::CreateConstantBuffer(256);
 	RegisterAsset("SubUVMaterial", ParticleMat);
+}
+
+void UAssetManager::CreateBillboardIconMaterial()
+{
+	UMaterial* IconMat = NewObject<UMaterial>();
+	IconMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/BillboardIcon.hlsl");
+	IconMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));   // 아이콘을 지정하지 않았을 때 기본값
+	IconMat->BlendState = EBlendState::AlphaBlend;
+	IconMat->DepthStencilState = EDepthStencilState::ReadOnly;
+	IconMat->ParamLayout = EMaterialParamLayout::None;                 
+	RegisterAsset("BillboardIconMaterial", IconMat);
 }
 
 void UAssetManager::Shutdown()

@@ -10,6 +10,9 @@ class UBillboardComponent : public UPrimitiveComponent
 		REFLECT_END()
 
 public:
+	// true면 에디터 월드에서만 그린다
+	bool bEditorOnly = true;
+
 	UBillboardComponent();
 	virtual ~UBillboardComponent() override;
 

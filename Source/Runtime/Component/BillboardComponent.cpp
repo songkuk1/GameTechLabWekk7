@@ -7,13 +7,11 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
-#include "Component/ParticleSubUVComponent.h"
-
 // Billboard 컴포넌트의 초기 상태를 구성한다.
 UBillboardComponent::UBillboardComponent()
 {
 	QuadMesh = UAssetManager::GetAssetByPath<UStaticMesh>("ParticleQuad");
-	Material = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");
+	Material = UAssetManager::GetAssetByPath<UMaterial>("BillboardIconMaterial");
 }
 
 // Billboard 컴포넌트의 소멸을 처리한다.
@@ -67,6 +65,10 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 // View별 Billboard 행렬과 Material을 렌더 패킷에 담는다.
 void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const FMatrix& BillboardWorldMatrix)
 {
+	// 월드 경로와 View별 어댑터 경로가 모두 여기로 들어오므로 PIE·Game 월드 숨김은 여기서 한 번만 처리한다
+	if (bEditorOnly && GetOwner()->GetWorld()->GetWorldType() != EWorldType::Editor)
+		return;
+
 	if (QuadMesh == nullptr || Material == nullptr)
 		return;
 
@@ -74,12 +76,6 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	Packet.Mesh = QuadMesh;
 	Packet.Material = Material;
 	Packet.Model = RenderQueue.StoreWorldMatrix(BillboardWorldMatrix);
-
-	/*
-	static const FSubUVConstants IconParams {0.0f, 1.0f, 1.0f, 1.0f};
-	Packet.MaterialParamData = &IconParams;
-	Packet.MaterialParamDataSize = sizeof(IconParams);
-	*/
 
 	RenderQueue.Add(Packet);
 }

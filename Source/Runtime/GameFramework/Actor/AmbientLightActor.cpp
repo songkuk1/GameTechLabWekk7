@@ -6,10 +6,22 @@
 
 AAmbientLightActor::AAmbientLightActor()
 {
-	AmbientLightComponent = CreateDefaultSubobject<UAmbientLightComponent>("UAmbientLightComponent");
-	SetRootComponent(AmbientLightComponent);
+	SetLightComponent(CreateDefaultSubobject<UPointLightComponent>("UPointLightComponent"));
+	SetRootComponent(LightComponent);
+	//UMaterial* BaseMaterial = UAssetManager::GetAssetByPath<UMaterial>("BillboardIconMaterial");
+	//UTexture2D* IconTexture = UAssetManager::Get().LoadTexture(PointLightOffIconPath);
+	//UMaterial* IconMaterial = UMaterial::CreateInstance(BaseMaterial);
 
-	BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
-	BillboardComponent->SetupAttachment(AmbientLightComponent, EAttachmentRule::SnapToTarget);
+	//if (IconMaterial && IconTexture)
+	//{
+	//	IconMaterial->Textures.Reset();
+	//	IconMaterial->Textures.Add(IconTexture);
+	//	BillboardComponent->SetMaterial(0, IconMaterial);
+	//}
+
+	BillboardComponent->SetupAttachment(GetRootComponent());
+	//빌보드 컴포넌트가 detail 패널에 안보이게함
 	BillboardComponent->SetHiddenInDetails(true);
+
+
 }

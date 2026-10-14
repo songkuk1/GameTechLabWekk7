@@ -60,12 +60,17 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     
     if(width > 0 && height > 0)
     {
-        float3 normalTS = g_txNormal.Sample(g_Sample, input.uv + UVOffset).rgb * 2.0f - 1.0f;
         float3 N = color;
-        float3 T = normalize(input.tangent.xyz - N * dot(N, input.tangent.xyz));
-        float S = input.tangent.w < 0.0f ? -1.0f : 1.0f;
-        float3 B = normalize(cross(N, T) * S);
-        color = normalize(normalTS.x * T + normalTS.y * B + normalTS.z * N);
+        float3 T = input.tangent.xyz - N * dot(N, input.tangent.xyz);
+        float tangentLengthSq = dot(T, T);
+        if (tangentLengthSq > 0.000001f)
+        {
+            T *= rsqrt(tangentLengthSq);
+            float S = input.tangent.w < 0.0f ? -1.0f : 1.0f;
+            float3 B = cross(N, T) * S;
+            float3 normalTS = g_txNormal.Sample(g_Sample, input.uv + UVOffset).rgb * 2.0f - 1.0f;
+            color = normalize(normalTS.x * T + normalTS.y * B + normalTS.z * N);
+        }
     }
     
     return float4(color * 0.5 + 0.5, 1.0);
