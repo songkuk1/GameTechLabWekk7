@@ -11,7 +11,7 @@
 UBillboardComponent::UBillboardComponent()
 {
 	QuadMesh = UAssetManager::GetAssetByPath<UStaticMesh>("ParticleQuad");
-	Material = UAssetManager::GetAssetByPath<UMaterial>("SubUVMaterial");
+	Material = UAssetManager::GetAssetByPath<UMaterial>("BillboardIconMaterial");
 }
 
 // Billboard 컴포넌트의 소멸을 처리한다.
@@ -65,6 +65,16 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 // View별 Billboard 행렬과 Material을 렌더 패킷에 담는다.
 void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const FMatrix& BillboardWorldMatrix)
 {
+	// 월드 경로와 View별 어댑터 경로가 모두 여기로 들어온다.
+	// 에디터 아이콘은 장면 패스에서 빼고 오버레이 패스(SubmitEditorIcon)에서 그리드 다음에 그린다
+	if (bEditorOnly)
+		return;
+
+	SubmitEditorIcon(RenderQueue, BillboardWorldMatrix);
+}
+
+void UBillboardComponent::SubmitEditorIcon(FRenderQueue& RenderQueue, const FMatrix& BillboardWorldMatrix, float CameraDistanceSquared)
+{
 	if (QuadMesh == nullptr || Material == nullptr)
 		return;
 
@@ -72,6 +82,8 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	Packet.Mesh = QuadMesh;
 	Packet.Material = Material;
 	Packet.Model = RenderQueue.StoreWorldMatrix(BillboardWorldMatrix);
+	Packet.CameraToParticleDistance = CameraDistanceSquared;
+
 	RenderQueue.Add(Packet);
 }
 

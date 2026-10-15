@@ -1,14 +1,40 @@
 #include "EnginePCH.h"
 #include "LightActor.h"
+#include "Asset/AssetManager.h"
+#include "Render/Material.h"
 
 ALightActor::ALightActor()
 {
 	BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
-	BillboardComponent->SetupAttachment(GetRootComponent());
+}
 
-	// 아이콘용 메시/머티리얼. Plane은 FVertex 포맷이라 DefaultShader로 그대로 그려진다.
-	// 라이트 아이콘 텍스처가 준비되면 Property 창에서 머티리얼 슬롯에 끼우면 된다.
+// 아이콘 머티리얼을 복사해 텍스처만 바꾼 인스턴스를 만든다. 텍스처를 못 읽으면 nullptr
+static UMaterial* CreateIconMaterial(const FString& IconPath)
+{
+	UTexture2D* IconTexture = UAssetManager::Get().LoadTexture(IconPath);
+	if (!IconTexture)
+		return nullptr;
 
-	SpotLightComponent = CreateDefaultSubobject<USpotLightComponent>("USpotLightComponent");
-	SpotLightComponent->SetupAttachment(GetRootComponent());
+	UMaterial* IconMaterial = UMaterial::CreateInstance(UAssetManager::GetAssetByPath<UMaterial>("BillboardIconMaterial"));
+	if (IconMaterial)
+	{
+		IconMaterial->Textures.Reset();
+		IconMaterial->Textures.Add(IconTexture);
+	}
+	return IconMaterial;
+}
+
+void ALightActor::SetIconTextures(const FString& OffIconPath, const FString& OnIconPath)
+{
+	OffIconMaterial = CreateIconMaterial(OffIconPath);
+	OnIconMaterial = CreateIconMaterial(OnIconPath);
+
+	SetIconSelected(false);
+}
+
+void ALightActor::SetIconSelected(bool bSelected)
+{
+	// 아이콘을 지정하지 않은 라이트는 기본 머티리얼을 그대로 둔다
+	if (UMaterial* IconMaterial = bSelected ? OnIconMaterial : OffIconMaterial)
+		BillboardComponent->SetMaterial(0, IconMaterial);
 }

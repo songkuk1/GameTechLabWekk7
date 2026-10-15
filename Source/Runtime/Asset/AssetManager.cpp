@@ -46,6 +46,7 @@ namespace
 		}
 
 		Optimized.OptimizeTriangleOrderForVertexCache();
+		Optimized.BuildTangnetAll();
 		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Optimized.Vertices.GetData(), sizeof(FVertexPNCT) * static_cast<uint32>(Optimized.Vertices.size()), sizeof(FVertexPNCT));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(Optimized.Indices.GetData(), static_cast<uint32>(Optimized.Indices.size()));
 		if (VB == nullptr || IB == nullptr) return nullptr;
@@ -84,9 +85,11 @@ namespace
 
 				if (Texture)
 				{
-					Material->Textures[0] = Texture;
+					Material->SetTexture(UMaterial::ColorTextureSlot, Texture);
 				}
 			}
+			Material->SetTexture(UMaterial::NormalTextureSlot, Slot.NormalTexturePath.empty()
+				? nullptr : UAssetManager::Get().LoadTexture(Slot.NormalTexturePath));
 			Mesh->Materials.Add(Material);
 		}
 
@@ -117,6 +120,7 @@ void UAssetManager::Init(const FAssetLoadProgress& OnProgress)
 	Get().ScanAssets("Assets", OnProgress);
 	Get().CreateDefaultMeshes();
 	Get().CreateParticleMaterial();
+	Get().CreateBillboardIconMaterial();
 }
 
 void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgress& OnProgress)
@@ -278,8 +282,9 @@ void UAssetManager::CreateDefaultMeshes()
 void UAssetManager::CreateDefaultMaterial()
 {
 	UMaterial* DefaultMat = NewObject<UMaterial>();
-	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl");
-	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
+	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/Unlit.hlsl");
+	DefaultMat->SetTexture(UMaterial::ColorTextureSlot, GetAssetByPath<UTexture2D>("WhiteTexture"));
+	DefaultMat->SetTexture(UMaterial::NormalTextureSlot, nullptr);
 
 
 	DefaultMat->ParamLayout = EMaterialParamLayout::StaticMesh;
@@ -297,6 +302,17 @@ void UAssetManager::CreateParticleMaterial()
 	ParticleMat->ParamLayout = EMaterialParamLayout::ParticleSubUV;
 	ParticleMat->ParamBuffer = RenderCommand::CreateConstantBuffer(256);
 	RegisterAsset("SubUVMaterial", ParticleMat);
+}
+
+void UAssetManager::CreateBillboardIconMaterial()
+{
+	UMaterial* IconMat = NewObject<UMaterial>();
+	IconMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/BillboardIcon.hlsl");
+	IconMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));   // 아이콘을 지정하지 않았을 때 기본값
+	IconMat->BlendState = EBlendState::AlphaBlend;
+	IconMat->DepthStencilState = EDepthStencilState::ReadOnly;
+	IconMat->ParamLayout = EMaterialParamLayout::None;                 
+	RegisterAsset("BillboardIconMaterial", IconMat);
 }
 
 void UAssetManager::Shutdown()
@@ -396,6 +412,7 @@ bool UAssetManager::ReorientStaticMesh(UStaticMesh& Mesh, const std::function<FV
 		Bounds.Max = FVector(std::max(Bounds.Max.X, Vertex.Position.X), std::max(Bounds.Max.Y, Vertex.Position.Y), std::max(Bounds.Max.Z, Vertex.Position.Z));
 	}
 	Data.AABB = Bounds;
+	Data.BuildTangnetAll();
 
 	// 인덱스는 그대로다 (회전은 삼각형 감기 방향을 바꾸지 않는다). 정점 버퍼만 다시 올린다.
 	TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(Data.Vertices.GetData(),
@@ -443,6 +460,7 @@ FLODGenerateResult UAssetManager::GenerateStaticMeshLODs(UStaticMesh& Mesh, cons
 		FStaticMeshLODResource Resource;
 		Resource.Data = std::move(Data);
 		Resource.Data.OptimizeTriangleOrderForVertexCache();
+		Resource.Data.BuildTangnetAll();
 
 		Resource.VertexBuffer = RenderCommand::CreateStaticVertexBuffer(
 			Resource.Data.Vertices.GetData(),

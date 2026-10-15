@@ -5,6 +5,7 @@
 #include "Component/SceneComponent.h"
 #include "Component/ParticleSubUVComponent.h"
 #include "Component/ExponentialHeightFogComponent.h"
+#include "Component/LightComponent.h"
 #include "Core/EngineLog.h"
 #include "UObject/Object.h"
 
@@ -288,7 +289,11 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 	{
         World->GetScene().AddPrimitive(Primitive);
 	}
-    
+	else if (ULightComponent* Light = Cast<ULightComponent>(NewComponent))
+	{
+        World->GetScene().AddLight(Light);
+	}
+
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponent))
 	{
 		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);        
@@ -343,6 +348,10 @@ void AActor::DestroyComponent(UActorComponent* Component)
     else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
     {
         World->GetScene().RemoveFogInfo(Fog->GetUUID());
+    }
+    else if (ULightComponent* Light = Cast<ULightComponent>(Component))
+    {
+        World->GetScene().RemoveLight(Light);
     }
     RemoveOwnedComponent(Component);
     delete Component;

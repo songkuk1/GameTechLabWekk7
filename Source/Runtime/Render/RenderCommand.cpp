@@ -73,7 +73,11 @@ TUniquePtr<FPixelShader> RenderCommand::CreatePixelShader(const FShaderByteCode&
 	assert(RenderDevice);
 	return RenderDevice->CreatePixelShader(ByteCode);
 }
-
+TUniquePtr<FComputeShader> RenderCommand::CreateComputeShader(const FShaderByteCode& ByteCode)
+{
+	assert(RenderDevice);
+	return RenderDevice->CreateComputeShader(ByteCode);
+}
 void RenderCommand::BindPipelineState(const FPipelineState& PipelineState)
 {
 	BindShaderProgram(PipelineState.Shader);
@@ -145,6 +149,8 @@ void RenderCommand::BindConstantBuffer(uint32 Slot, FConstantBuffer* ConstantBuf
 		RenderDevice->GetContext()->VSSetConstantBuffers(Slot, 1, &Buffer);
 	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
 		RenderDevice->GetContext()->PSSetConstantBuffers(Slot, 1, &Buffer);
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Compute))
+		RenderDevice->GetContext()->CSSetConstantBuffers(Slot, 1, &Buffer);
 
 }
 
@@ -178,7 +184,7 @@ void RenderCommand::Unmap(FBuffer* InBuffer)
 
 void RenderCommand::BindShaderResource(uint32 Slot, FTexture2D* Texture2D, EShaderBindFlagBits FlagBits)
 {
-	ID3D11ShaderResourceView* SRV = Texture2D->GetSRV();
+	ID3D11ShaderResourceView* SRV = Texture2D ? Texture2D->GetSRV() : nullptr;
 	if (HasFlag(FlagBits, EShaderBindFlagBits::Vertex))
 	{
 		RenderDevice->GetContext()->VSSetShaderResources(Slot, 1, &SRV);
@@ -188,11 +194,15 @@ void RenderCommand::BindShaderResource(uint32 Slot, FTexture2D* Texture2D, EShad
 	{
 		RenderDevice->GetContext()->PSSetShaderResources(Slot, 1, &SRV);
 	}
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Compute))
+	{
+		RenderDevice->GetContext()->CSSetShaderResources(Slot, 1, &SRV);
+	}
 }
 
 void RenderCommand::BindShaderResource(uint32 Slot, UTexture2D* Texture2D, EShaderBindFlagBits FlagBits)
 {
-	BindShaderResource(Slot, Texture2D->GetResource(), FlagBits);
+	BindShaderResource(Slot, Texture2D ? Texture2D->GetResource() : nullptr, FlagBits);
 }
 
 void RenderCommand::UnbindShaderResource(uint32 Slot, EShaderBindFlagBits FlagBits)
@@ -301,5 +311,57 @@ void RenderCommand::BindSamplerState(uint32 Slot, ESamplerState SamplerState, ES
 	{
 		RenderDevice->GetContext()->PSSetSamplers(Slot, 1, &Sampler);
 	}
+}
+
+
+void RenderCommand::CSSetSampler(uint32 Slot, ESamplerState SamplerState, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	ID3D11SamplerState* Sampler = RenderDevice->GetSamplerState(SamplerState);
+	Ctx->CSSetSamplers(Slot, 1, &Sampler);
+}
+
+void RenderCommand::Dispatch(uint32 X, uint32 Y, uint32 Z, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	Ctx->Dispatch(X, Y, Z);
+}
+
+void RenderCommand::CSSetShader(FComputeShader* Shader, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	Ctx->CSSetShader(Shader ? Shader->GetShader() : nullptr, nullptr, 0);
+}
+
+void RenderCommand::CSSetShaderResource(uint32 Slot, ID3D11ShaderResourceView* SRV, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	Ctx->CSSetShaderResources(Slot, 1, &SRV);
+}
+
+void RenderCommand::CSSetShaderResources(uint32 StartSlot, uint32 NumViews, ID3D11ShaderResourceView* const* ppShaderResourceViews, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	Ctx->CSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews);
+}
+
+void RenderCommand::CSSetUnorderedAccessView(uint32 Slot, ID3D11UnorderedAccessView* UAV, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	uint32 InitialCount = 0xffffffff;
+	Ctx->CSSetUnorderedAccessViews(Slot, 1, &UAV, &InitialCount);
+}
+
+void RenderCommand::CSSetUnorderedAccessViews(uint32 StartSlot, uint32 NumUAVs, ID3D11UnorderedAccessView* const* ppUnorderedAccessViews, const uint32* pUAVInitialCounts, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	Ctx->CSSetUnorderedAccessViews(StartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
+}
+
+void RenderCommand::CSSetConstantBuffer(uint32 Slot, FConstantBuffer* ConstantBuffer, ID3D11DeviceContext* Context)
+{
+	ID3D11DeviceContext* Ctx = Context ? Context : RenderDevice->GetContext();
+	ID3D11Buffer* Buffer = ConstantBuffer ? ConstantBuffer->GetBuffer() : nullptr;
+	Ctx->CSSetConstantBuffers(Slot, 1, &Buffer);
 }
 

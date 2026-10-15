@@ -56,6 +56,10 @@ public:
     // 프리셋 또는 카메라 Forward 지배축으로 표시할 Grid 평면을 고른다.
     EGridPlane GetGridPlane(int32 ViewIndex) const;
 
+    //지정 View에 적용된 카메라 뷰 모드를 반환한다.
+    EMultipleViewPortsViewMode GetViewMode(int32 ViewIndex) const;
+    void SetViewMode(int32 ViewIndex, EMultipleViewPortsViewMode ViewMode);
+
     // 레이아웃 Rect를 계산하고 마우스 위치로 Hover·활성 View를 갱신한다.
     void UpdateLayout(FVector2 WindowSize, FVector2 LocalMousePosition);
     // Splitter Drag 픽셀을 Core 비율 계산에 전달해 레이아웃 상태를 갱신한다.
@@ -114,6 +118,8 @@ public:
     void SetSplitRatio(const FSplitRatio& Value);
     // 현재 가로·세로 Split 비율을 반환한다.
     const FSplitRatio& GetSplitRatio() const { return SplitRatio; }
+    FMatrix GetEngineViewMatrix(int32 ViewIndex) const;
+    FMatrix GetEngineProjectionMatrix(int32 ViewIndex) const;
 
 private:
     // Override가 있으면 그 카메라를, 없으면 저장 카메라를 반환한다. 외부 View는 Override만 쓴다.
@@ -138,6 +144,7 @@ private:
 
     FViewSet Views{};
     EMultipleViewportsCameraPreset CameraPresets[4]{};
+    EMultipleViewPortsViewMode ViewModes[4]{};
     FSplitRatio SplitRatio{};
     FViewInputState InputState{};
     // Core 함수는 앞의 네 Rect만 읽고 쓴다. 마지막 칸은 외부 View다.

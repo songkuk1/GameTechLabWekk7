@@ -164,6 +164,13 @@ bool UEditorEngine::Init()
 			Gizmo->SetTarget(Root, true);
 			DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
 
+			// 선택된 라이트만 On 아이콘, 나머지는 Off 아이콘으로 돌린다
+			// (이전 선택 포인터를 들고 있으면 씬 교체 후 해제된 액터를 건드릴 수 있어 매번 전체를 훑는다)
+			AActor* SelectedActor = Root ? Root->GetOwner() : nullptr;
+			for (AActor* Actor : GetActiveWorld()->GetPersistentLevel()->GetActors())
+				if (ALightActor* LightActor = Cast<ALightActor>(Actor))
+					LightActor->SetIconSelected(LightActor == SelectedActor);
+
 			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
 			if (!Primitive && Root && Root->GetOwner())
 			{
@@ -413,8 +420,7 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			// FireBall 라이트 상수는 Renderer 공용 상태라 월드가 바뀌면 다시 올린다.
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
+			ViewWorld->GetScene().UpdateDirectionalLight(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
@@ -444,7 +450,6 @@ void UEditorEngine::RenderMultipleViewports()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 			MultipleViewportsAdapter.CaptureWorld(*ViewWorld);
-			ViewWorld->GetScene().UpdateFireBallLight(Renderer);
 			CapturedWorld = ViewWorld;
 		}
 
@@ -464,13 +469,24 @@ void UEditorEngine::RenderMultipleViewports()
 		CopyPIEWindowToBackbuffer();
 	}
 
+
+	//어댑터의 view Mode 정보,Layout정보를 뷰포트에 동기화
 	EMultipleViewportsCameraPreset CameraPresets[4]{};
+	EMultipleViewPortsViewMode ViewModes[4]{};
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
+	{
 		CameraPresets[ViewIndex] = MultipleViewportsAdapter.GetCameraPreset(ViewIndex);
+		ViewModes[ViewIndex] = MultipleViewportsAdapter.GetViewMode(ViewIndex);
+	}
+		
 	ViewportsPanel->SetControlState(
 		MultipleViewportsAdapter.GetLayoutMode(),
 		MultipleViewportsAdapter.GetSingleViewIndex(),
-		CameraPresets);
+		CameraPresets, ViewModes);
+
+	
+
+
 }
 
 void UEditorEngine::UpdatePIEViewCamera()
@@ -550,38 +566,34 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 {
 	RenderCommand::BeginRenderPass(ViewRenderingInfo);
 
-	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
+	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
+
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
 	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
 		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
 
-	// 렌더 루프 — 반드시 RenderAll보다 먼저
-	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
-	if (bDrawPrimitives)
-	{
+
 		RenderCommand::SetRasterizerState(SceneRasterizerState);
 		RenderCommand::SetBlendState(EBlendState::Opaque);
 		RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
 
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		//불투명 Draw
 		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
-		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
 		Renderer->RenderOpaque(ViewProjection);
 		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-	}
+	
 
 
-
-	if (bDrawPrimitives)
-	{
+		//반투명 Draw
 		// Grid 파이프라인이 바꾼 상태를 장면 기준으로 되돌린 뒤 반투명을 먼 것부터 그린다.
 		RenderCommand::SetRasterizerState(SceneRasterizerState);
 		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		Renderer->RenderTranslucent(ViewProjection);
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-	}
-
+	
 
 
 	RenderCommand::EndRenderPass(ViewRenderingInfo);
@@ -644,7 +656,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 		{
 			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
 			{
-				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
+				LightActor->GetLightComponent()->DrawDebug(LineBatcher.get());
 			}
 		}
 
@@ -675,6 +687,34 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, UWorld& ViewWorld, 
 				MultipleViewportsAdapter.GetCameraPreset(ViewIndex) == EMultipleViewportsCameraPreset::OrthographicView,
 				PassInfo.ViewportSetting
 			);
+		}
+	}
+
+	// 에디터 아이콘(라이트·포그 빌보드): 그리드 위에 보이도록 그리드 다음에 그린다.
+	// 오버레이 패스라 PIE View에서는 그려지지 않고, 안개·FXAA도 받지 않는다.
+	if (bShowEditorOverlay && SettingsPanel->GetSettings().bDrawPrimitives)
+	{
+		FRenderQueue IconQueue;
+		for (TObjectIterator<UBillboardComponent> Billboard; Billboard; ++Billboard)
+		{
+			if (!Billboard || !Billboard->bEditorOnly || !Billboard->IsVisible())
+				continue;
+			if (!Billboard->GetOwner() || Billboard->GetOwner()->GetWorld() != &ViewWorld)
+				continue;
+
+			const FVector Scale = Billboard->GetWorldScale3D();
+			const FVector Location = Billboard->GetWorldLocation();
+			const FVector Delta = Location - ViewCameraLocation;
+			Billboard->SubmitEditorIcon(IconQueue, MultipleViewportsAdapter.BuildEngineBillboardMatrix(
+				ViewIndex, Location, Scale.Y, Scale.Z), Delta.Dot(Delta));
+		}
+
+		if (IconQueue.Num() > 0)
+		{
+			RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+			RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			Renderer->RenderQueueSorting(IconQueue, ViewProjection);
+			Renderer->RenderTranslucent(ViewProjection);
 		}
 	}
 
@@ -853,14 +893,40 @@ void UEditorEngine::UpdateGizmoAndPicking()
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
 void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
-	// 1. 불투명 Pass
-	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	// 공유 버퍼에 이전 뷰의 결과가 남아 있어도 현재 뷰에서 재사용하지 않는다.
+	Renderer->ResetLightCulling();
+	
+	ViewWorld.GetScene().UpdateLights(Renderer);
 
-	if (SettingsPanel->GetSettings().bDepthView)
+	// 뷰포트마다 셰이딩 모드와 카메라가 다르므로 그리기 전에 렌더러에 알린다.
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::UnLit) == static_cast<int>(ERenderViewMode::Unlit));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Gouraud) == static_cast<int>(ERenderViewMode::Lit_Gouraud));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Lambert) == static_cast<int>(ERenderViewMode::Lit_Lambert));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::Lit_Phong) == static_cast<int>(ERenderViewMode::Lit_Phong));
+	static_assert(static_cast<int>(EMultipleViewPortsViewMode::World_Normal) == static_cast<int>(ERenderViewMode::World_Normal));
+	Renderer->SetViewMode(static_cast<ERenderViewMode>(MultipleViewportsAdapter.GetViewMode(ViewIndex)));
+	Renderer->SetCameraPosition(ViewCameraLocation);
+
+	// 0. 배경 Render
+
+	// 1. 불투명 Pass
+	if (SettingsPanel->GetSettings().bDrawPrimitives)
+	{
+		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
+		
+		// OFF면 타일 결과를 무효 상태로 유지해 전체 라이트를 순회한다.
+		if (SettingsPanel->GetSettings().bEnableLightCulling)
+			LightCullingPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
+		RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	}
+
+	if (SettingsPanel->GetSettings().bCullingView)
+	{
+		Renderer->RenderCullingView(ViewRenderingInfo);
+	}
+	else if (SettingsPanel->GetSettings().bDepthView)
 	{
 		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
-
-
 	}
 	else
 	{
@@ -877,7 +943,8 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, UWorld& ViewWorld, const 
 
 
 	// 4. 오버레이 Pass
-	RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	if (!SettingsPanel->GetSettings().bCullingView)
+		RenderOverlayPass(ViewIndex, ViewWorld, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 
 }
@@ -1162,4 +1229,32 @@ void UEditorEngine::SaveSceneAs()
 		return;
 	}
 	FEditorFileUtils::SaveSceneAs(EditorWorld);
+}
+// Opaque에 대한 Depth 업데이트 및 Tile-based Culling. 우선 Opaque에 대해서만 조명을 적용하는걸 가정함.
+void UEditorEngine::LightCullingPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward)
+{
+	// 1. DepthStencilTexture만 업데이트
+	if (MultipleViewportsAdapter.IsViewWireframe(ViewIndex)) return;
+	if (MultipleViewportsAdapter.IsOrthographic(ViewIndex))  return;   // 타일 상자 계산이 원근 전용
+
+	FTexture2D* DepthTexture = ViewRenderingInfo.DepthStencil.Texture;
+	const uint32 Width = ViewRenderingInfo.ViewportSetting.Width;
+	const uint32 Height = ViewRenderingInfo.ViewportSetting.Height;
+	if (!DepthTexture || Width == 0 || Height == 0) return;
+
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+	PassInfo.ColorRenderTargets.Reset(); //RTV 해제
+	RenderCommand::BeginRenderPass(PassInfo); // RTV=null,DSV=set
+	RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+	RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
+	
+	Renderer->RenderDepthOnly(ViewProjection);
+
+	RenderCommand::EndRenderPass(ViewRenderingInfo);
+
+	// 2. Tile-based Culling
+	Renderer->LightCulling(MultipleViewportsAdapter.GetEngineViewMatrix(ViewIndex),
+		MultipleViewportsAdapter.GetEngineProjectionMatrix(ViewIndex),
+		Width, Height,DepthTexture);
 }

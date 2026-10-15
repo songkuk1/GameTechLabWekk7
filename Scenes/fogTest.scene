@@ -1,136 +1,232 @@
 {
-    "Actors": [
-        {
-            "Class": "AStaticMeshActor",
-            "Components": [
-                {
-                    "Class": "UStaticMeshComponent",
-                    "Name": "UPrimitiveComponent_0",
-                    "Properties": {
-                        "OverrideMaterials": [],
-                        "StaticMesh": "Cube",
-                        "Transform": {
-                            "Location": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Rotation": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Scale": [
-                                20.739398956298828,
-                                12.813807487487793,
-                                0.24036407470703125
-                            ]
-                        },
-                        "bVisible": true
-                    }
-                }
-            ],
-            "Properties": null
-        },
-        {
-            "Class": "AStaticMeshActor",
-            "Components": [
-                {
-                    "Class": "UStaticMeshComponent",
-                    "Name": "UPrimitiveComponent_0",
-                    "Properties": {
-                        "OverrideMaterials": [],
-                        "StaticMesh": "Models/Ryo/Ryo.obj",
-                        "Transform": {
-                            "Location": [
-                                0.0,
-                                0.0,
-                                0.8234899044036865
-                            ],
-                            "Rotation": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Scale": [
-                                1.0,
-                                1.0,
-                                1.0
-                            ]
-                        },
-                        "bVisible": true
-                    }
-                }
-            ],
-            "Properties": null
-        },
-        {
-            "Class": "AExponentialHeightFogActor",
-            "Components": [
-                {
-                    "Class": "UBillboardComponent",
-                    "Name": "UBillboardComponent_0",
-                    "Properties": {
-                        "Material": {
-                            "Asset": "SubUVMaterial"
-                        },
-                        "Transform": {
-                            "Location": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Rotation": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Scale": [
-                                1.0,
-                                1.0,
-                                1.0
-                            ]
-                        },
-                        "bVisible": true
-                    }
-                },
-                {
-                    "Class": "UExponentialHeightFogComponent",
-                    "Name": "UExponentialHeightFogComponent_0",
-                    "Properties": {
-                        "FogColor": [
-                            1.0,
-                            0.4000000059604645,
-                            0.699999988079071,
-                            1.0
-                        ],
-                        "FogCutoffDistance": 0.0,
-                        "FogDensity": 0.10000000149011612,
-                        "FogHeightFalloff": 0.20000000298023224,
-                        "FogMaxOpacity": 1.0,
-                        "StartDistance": 10.0,
-                        "Transform": {
-                            "Location": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Rotation": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ],
-                            "Scale": [
-                                1.0,
-                                1.0,
-                                1.0
-                            ]
-                        }
-                    }
-                }
-            ],
-            "Properties": null
-        }
-    ],
-    "Version": 2
+    "Version":  4,
+    "World":  {
+                  "PersistentLevel":  {
+                                          "Actors":  [
+                                                         {
+                                                             "Class":  "AStaticMeshActor",
+                                                             "Components":  [
+                                                                                {
+                                                                                    "Class":  "USceneComponent",
+                                                                                    "Name":  "DefaultSceneRoot",
+                                                                                    "Parent":  "",
+                                                                                    "Properties":  {
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  20.739398956298828,
+                                                                                                                                       "Y":  12.813807487487791,
+                                                                                                                                       "Z":  0.24036407470703125
+                                                                                                                                   }
+                                                                                                                     }
+                                                                                                   }
+                                                                                },
+                                                                                {
+                                                                                    "Class":  "UStaticMeshComponent",
+                                                                                    "Name":  "UStaticMeshComponent",
+                                                                                    "OverrideMaterials":  [
+
+                                                                                                          ],
+                                                                                    "Parent":  "DefaultSceneRoot",
+                                                                                    "Properties":  {
+                                                                                                       "StaticMesh":  "Cube",
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  1,
+                                                                                                                                       "Y":  1,
+                                                                                                                                       "Z":  1
+                                                                                                                                   }
+                                                                                                                     },
+                                                                                                       "bVisible":  true
+                                                                                                   }
+                                                                                }
+                                                                            ],
+                                                             "Properties":  {
+
+                                                                            }
+                                                         },
+                                                         {
+                                                             "Class":  "AStaticMeshActor",
+                                                             "Components":  [
+                                                                                {
+                                                                                    "Class":  "USceneComponent",
+                                                                                    "Name":  "DefaultSceneRoot",
+                                                                                    "Parent":  "",
+                                                                                    "Properties":  {
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0.82348990440368652
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  1,
+                                                                                                                                       "Y":  1,
+                                                                                                                                       "Z":  1
+                                                                                                                                   }
+                                                                                                                     }
+                                                                                                   }
+                                                                                },
+                                                                                {
+                                                                                    "Class":  "UStaticMeshComponent",
+                                                                                    "Name":  "UStaticMeshComponent",
+                                                                                    "OverrideMaterials":  [
+
+                                                                                                          ],
+                                                                                    "Parent":  "DefaultSceneRoot",
+                                                                                    "Properties":  {
+                                                                                                       "StaticMesh":  "Models/Ryo/Ryo.obj",
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  1,
+                                                                                                                                       "Y":  1,
+                                                                                                                                       "Z":  1
+                                                                                                                                   }
+                                                                                                                     },
+                                                                                                       "bVisible":  true
+                                                                                                   }
+                                                                                }
+                                                                            ],
+                                                             "Properties":  {
+
+                                                                            }
+                                                         },
+                                                         {
+                                                             "Class":  "AExponentialHeightFogActor",
+                                                             "Components":  [
+                                                                                {
+                                                                                    "Class":  "USceneComponent",
+                                                                                    "Name":  "DefaultSceneRoot",
+                                                                                    "Parent":  "",
+                                                                                    "Properties":  {
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  1,
+                                                                                                                                       "Y":  1,
+                                                                                                                                       "Z":  1
+                                                                                                                                   }
+                                                                                                                     }
+                                                                                                   }
+                                                                                },
+                                                                                {
+                                                                                    "Class":  "UExponentialHeightFogComponent",
+                                                                                    "Name":  "UExponentialHeightFogComponent",
+                                                                                    "Parent":  "",
+                                                                                    "Properties":  {
+                                                                                                       "FogColor":  {
+                                                                                                                        "W":  1,
+                                                                                                                        "X":  1,
+                                                                                                                        "Y":  0.40000000596046448,
+                                                                                                                        "Z":  0.699999988079071
+                                                                                                                    },
+                                                                                                       "FogCutoffDistance":  0.0,
+                                                                                                       "FogDensity":  0.10000000149011612,
+                                                                                                       "FogHeightFalloff":  0.20000000298023224,
+                                                                                                       "FogMaxOpacity":  1.0,
+                                                                                                       "StartDistance":  10.0,
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  1,
+                                                                                                                                       "Y":  1,
+                                                                                                                                       "Z":  1
+                                                                                                                                   }
+                                                                                                                     }
+                                                                                                   }
+                                                                                },
+                                                                                {
+                                                                                    "Class":  "UBillboardComponent",
+                                                                                    "Name":  "UBillboardComponent",
+                                                                                    "Material":  {
+                                                                                                     "Asset":  "SubUVMaterial"
+                                                                                                 },
+                                                                                    "Parent":  "UExponentialHeightFogComponent",
+                                                                                    "Properties":  {
+                                                                                                       "Transform":  {
+                                                                                                                         "Location":  {
+                                                                                                                                          "X":  0,
+                                                                                                                                          "Y":  0,
+                                                                                                                                          "Z":  0
+                                                                                                                                      },
+                                                                                                                         "Rotation":  {
+                                                                                                                                          "Pitch":  0,
+                                                                                                                                          "Yaw":  0,
+                                                                                                                                          "Roll":  0
+                                                                                                                                      },
+                                                                                                                         "Scale":  {
+                                                                                                                                       "X":  1,
+                                                                                                                                       "Y":  1,
+                                                                                                                                       "Z":  1
+                                                                                                                                   }
+                                                                                                                     },
+                                                                                                       "bVisible":  true
+                                                                                                   }
+                                                                                }
+                                                                            ],
+                                                             "Properties":  {
+
+                                                                            }
+                                                         }
+                                                     ],
+                                          "Properties":  {
+
+                                                         }
+                                      },
+                  "Properties":  {
+
+                                 }
+              }
 }
